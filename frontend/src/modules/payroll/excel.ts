@@ -230,13 +230,16 @@ export function buildPayrollWorkbook(input: {
   return wb;
 }
 
-/** Convenience wrapper for callers that just want a Node Buffer. */
+/**
+ * Convenience wrapper that returns a Uint8Array — works as a Web
+ * `BodyInit` for NextResponse and as a buffer for `fs.writeFile`.
+ */
 export async function buildPayrollBuffer(
   input: Parameters<typeof buildPayrollWorkbook>[0],
-): Promise<Buffer> {
+): Promise<Uint8Array> {
   const wb = buildPayrollWorkbook(input);
   const arr = await wb.xlsx.writeBuffer();
-  return Buffer.from(arr as ArrayBuffer);
+  return new Uint8Array(arr as ArrayBuffer);
 }
 
 // ─── Formatting helpers ──────────────────────────────────────────────────────

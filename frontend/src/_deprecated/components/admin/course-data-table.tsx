@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 
 import type { CourseRow } from "@/types/database";
-import { createCourse, deleteCourse } from "@/app/actions/courses";
+import { createCourse, deleteCourse } from "@/_deprecated/actions/courses";
 import {
   Dialog,
   DialogContent,

@@ -37,7 +37,7 @@ import {
   type Module,
   type ProfileLayout,
 } from "@/lib/profile-schema";
-import { saveProfileDraft, publishProfile } from "@/app/actions/profile";
+import { saveProfileDraft, publishProfile } from "@/_deprecated/actions/profile";
 import {
   AboutExpanded,
   ContactExpanded,

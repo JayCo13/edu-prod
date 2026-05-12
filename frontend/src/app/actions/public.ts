@@ -33,8 +33,10 @@ export interface ActionResult<T = null> {
   error?: string;
 }
 
-// ── Get Public Teachers (Marketplace Directory) ────────────────────────────
-
+// [DEPRECATED per PRD §4.3] - hidden 2026-05-12
+// Marketplace teacher directory; out of scope per PRD §1.4.
+// Original implementation preserved in git history.
+/*
 export async function getPublicTeachers(): Promise<ActionResult<PublicTeacher[]>> {
   try {
     const supabase = await createClient();
@@ -67,6 +69,7 @@ export async function getPublicTeachers(): Promise<ActionResult<PublicTeacher[]>
     return { success: false, error: "Không thể tải danh sách giáo viên." };
   }
 }
+*/
 
 // ── Get Teacher By Slug ────────────────────────────────────────────────────
 
@@ -160,8 +163,10 @@ export async function getTenantBySlug(
   }
 }
 
-// ── Get Published Courses By Tenant ────────────────────────────────────────
-
+// [DEPRECATED per PRD §4.3] - hidden 2026-05-12
+// Published-courses query for tenant storefront; LMS out of scope per PRD §1.4.
+// Original implementation preserved in git history.
+/*
 export interface PublicCourseCard {
   id: string;
   title: string;
@@ -199,3 +204,4 @@ export async function getTeacherPublishedCourses(
     return { success: false, error: "Không thể tải danh sách khóa học." };
   }
 }
+*/

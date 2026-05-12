@@ -1,23 +1,10 @@
-import { getCourses } from "@/app/actions/courses";
-import CourseDataTable from "@/components/admin/course-data-table";
+// [DEPRECATED per PRD §4.3] - hidden 2026-05-12
+// Admin courses listing; LMS out of scope per PRD §1.4.
+// Replaced by modules/classes/ per PRD §5.5 (different domain).
+// Original implementation preserved in git history.
 
-/**
- * Courses Page (Server Component)
- * ================================
- * Fetches teacher's courses via Server Action, then passes data
- * to the CourseDataTable client component for interactive UI.
- *
- * Because this is a Server Component:
- *   - getCourses() runs on the server with full cookie access
- *   - No client-side fetch waterfall
- *   - Data is streamed as HTML (fast TTFB)
- */
-export default async function CoursesPage() {
-  const result = await getCourses();
+import { notFound } from "next/navigation";
 
-  return (
-    <div className="mx-auto max-w-6xl">
-      <CourseDataTable courses={result.data || []} />
-    </div>
-  );
+export default function CoursesAdminPage() {
+  notFound();
 }

@@ -88,6 +88,8 @@ export default async function StudentLiveListPage({ params }: PageProps) {
               Khi giáo viên lên lịch buổi học mới, lớp sẽ xuất hiện ở đây
               ngay.
             </p>
+            {/* [DEPRECATED per PRD §4.3] - hidden 2026-05-12
+                Linked to public courses storefront; LMS out of scope.
             <Link
               href="/courses"
               className="mt-5 inline-flex items-center gap-1.5 font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-700 hover:text-slate-900"
@@ -95,6 +97,7 @@ export default async function StudentLiveListPage({ params }: PageProps) {
               <CalendarIcon className="h-3 w-3" />
               Xem tất cả khóa học
             </Link>
+            */}
           </div>
         ) : (
           <div className="mt-10 space-y-10">

@@ -74,11 +74,14 @@ export default async function PublicLayout({
                 Bảng giá
               </Link>
             </li>
+            {/* [DEPRECATED per PRD §4.3] - hidden 2026-05-12
+                Public teacher directory (marketplace) is out of scope.
             <li>
               <Link href="/teachers" className="transition-colors hover:text-slate-900">
                 Giáo viên
               </Link>
             </li>
+            */}
           </ul>
 
           <UserMenu user={userData} />

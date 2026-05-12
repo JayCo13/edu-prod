@@ -108,6 +108,8 @@ export default function HeroSection() {
             </p>
 
             <div className="mt-9 flex flex-wrap items-center gap-3">
+              {/* [DEPRECATED per PRD §4.3] - hidden 2026-05-12
+                  Teacher self-signup CTA. PRD §8.1: replace with demo-booking CTA for center owners.
               <motion.a
                 href="/register"
                 whileHover={{ scale: 1.02 }}
@@ -121,6 +123,7 @@ export default function HeroSection() {
                 Bắt đầu miễn phí — không cần thẻ
                 <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
               </motion.a>
+              */}
               <a
                 href="#demo"
                 className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3.5 text-[14px] font-semibold text-slate-800 transition-colors hover:border-slate-300 hover:bg-slate-50"

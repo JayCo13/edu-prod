@@ -76,6 +76,8 @@ function Plan({ name, price, suffix, desc, features, highlight }: PlanProps) {
           </li>
         ))}
       </ul>
+      {/* [DEPRECATED per PRD §4.3] - hidden 2026-05-12
+          Teacher self-signup CTA. PRD §8.1: replace with demo-booking CTA for center owners.
       <a
         href="/register"
         className={`mt-7 inline-flex items-center justify-center gap-1.5 rounded-xl py-3 text-[13.5px] font-semibold transition-all hover:scale-[1.01] ${
@@ -87,6 +89,7 @@ function Plan({ name, price, suffix, desc, features, highlight }: PlanProps) {
         {highlight ? "Bắt đầu Pro" : "Bắt đầu miễn phí"}
         <ArrowRight className="h-3.5 w-3.5" />
       </a>
+      */}
     </div>
   );
 }

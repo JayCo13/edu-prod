@@ -50,12 +50,15 @@ export default function UserMenu({ user }: UserMenuProps) {
         >
           Đăng nhập
         </Link>
+        {/* [DEPRECATED per PRD §4.3] - hidden 2026-05-12
+            Teacher self-signup CTA. PRD §3.5 teachers join via center invite only.
         <Link
           href="/register"
           className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-opacity hover:opacity-90"
         >
           Bắt đầu miễn phí
         </Link>
+        */}
       </div>
     );
   }

@@ -201,6 +201,8 @@ export default function LoginForm() {
         </form>
 
         {/* ── Footer ─────────────────────────────────────────── */}
+        {/* [DEPRECATED per PRD §4.3] - hidden 2026-05-12
+            Teacher self-signup link. Per PRD §3.5 teachers join via center invite only.
         <p className="mt-6 text-center text-sm text-slate-500">
           Chưa có tài khoản?{" "}
           <Link
@@ -210,6 +212,7 @@ export default function LoginForm() {
             Đăng ký miễn phí
           </Link>
         </p>
+        */}
       </div>
     </motion.div>
   );

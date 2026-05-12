@@ -78,6 +78,8 @@ export default function CTASection() {
               trong 5 phút, không cần thẻ tín dụng, không cam kết dài hạn.
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-3">
+              {/* [DEPRECATED per PRD §4.3] - hidden 2026-05-12
+                  Teacher self-signup CTA. PRD §8.1: replace with demo-booking CTA for center owners.
               <a
                 href="/register"
                 className="group inline-flex items-center gap-2 rounded-xl bg-white px-6 py-3.5 text-[14px] font-semibold text-slate-900 transition-transform hover:scale-[1.02]"
@@ -85,6 +87,7 @@ export default function CTASection() {
                 Tạo tài khoản miễn phí
                 <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
               </a>
+              */}
               <a
                 href="mailto:hello@vlearning.io"
                 className="text-[14px] font-medium text-slate-300 transition-colors hover:text-white"

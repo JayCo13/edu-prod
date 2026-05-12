@@ -39,12 +39,14 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { label: "Courses", href: "/dashboard/courses", icon: BookOpen },
+  // [DEPRECATED per PRD §4.3] - hidden 2026-05-12 — LMS (courses/lessons) out of scope
+  // { label: "Courses", href: "/dashboard/courses", icon: BookOpen },
   { label: "Lịch dạy", href: "/dashboard/calendar", icon: Calendar },
   { label: "Giáo viên", href: "/dashboard/teachers", icon: UserCog },
   { label: "Students", href: "/dashboard/students", icon: Users },
   { label: "Analytics", href: "/dashboard/analytics", icon: BarChart3 },
-  { label: "Trang cá nhân", href: "/dashboard/profile", icon: Settings },
+  // [DEPRECATED per PRD §4.3] - hidden 2026-05-12 — teacher public storefront out of scope
+  // { label: "Trang cá nhân", href: "/dashboard/profile", icon: Settings },
 ];
 
 const QUICK_CREATE_HREF = "/dashboard/calendar?create=1";

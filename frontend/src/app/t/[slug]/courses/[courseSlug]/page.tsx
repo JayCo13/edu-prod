@@ -1,30 +1,9 @@
+// [DEPRECATED per PRD §4.3] - hidden 2026-05-12
+// LMS course storefront; out of scope per PRD §1.4.
+// Original implementation preserved in git history.
+
 import { notFound } from "next/navigation";
-import { getPublicCourseBySlug } from "@/app/actions/student";
-import CourseStorefront from "./_components/CourseStorefront";
 
-/**
- * Course Storefront Page (Server Component)
- * ==========================================
- * Route: /t/[slug]/courses/[courseSlug]
- * Public page — no auth required. Fetches published course details.
- */
-
-interface PageProps {
-  params: Promise<{ slug: string; courseSlug: string }>;
-}
-
-export default async function CourseStorefrontPage({ params }: PageProps) {
-  const { slug, courseSlug } = await params;
-
-  const result = await getPublicCourseBySlug(slug, courseSlug);
-
-  if (!result.success || !result.data) {
-    notFound();
-  }
-
-  return (
-    <div className="min-h-screen bg-background">
-      <CourseStorefront course={result.data} tenantSlug={slug} />
-    </div>
-  );
+export default function CourseStorefrontPage() {
+  notFound();
 }

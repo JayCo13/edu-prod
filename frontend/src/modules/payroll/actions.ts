@@ -15,6 +15,7 @@ import { revalidatePath } from "next/cache";
 import {
   addAdjustment,
   approvePeriod,
+  createPayrollPeriod,
   getPayrollPeriod,
   listPayrollPeriods,
   markPeriodPaid,
@@ -30,6 +31,28 @@ export async function listPayrollPeriodsAction() {
 
 export async function getPayrollPeriodAction(id: string) {
   return getPayrollPeriod(id);
+}
+
+/**
+ * Creates an empty DRAFT period for the given month. Items are populated
+ * by a separate flow (seed script today; sessions-module integration
+ * later). Until then the UI lets admins create the shell and add
+ * adjustments to manually-seeded items.
+ */
+export async function createEmptyPayrollPeriodAction(input: {
+  period_start: string;
+  period_end: string;
+  notes?: string;
+}) {
+  const r = await createPayrollPeriod({
+    period_start: input.period_start,
+    period_end: input.period_end,
+    notes: input.notes,
+    teachers: [],
+    sessions: [],
+  });
+  if (r.success) revalidatePath(LIST_PATH);
+  return r;
 }
 
 export async function addAdjustmentAction(

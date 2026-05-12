@@ -11,6 +11,10 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import { createClient } from "@/lib/supabase/server";
 import { resolveCenterId } from "@/lib/auth/resolveCenterId";
+import {
+  buildRequestMetadata,
+  logAuditEntry,
+} from "@/modules/audit/service";
 import { calculatePayroll } from "./calculator";
 import * as repo from "./repository";
 import type {
@@ -51,6 +55,31 @@ async function requireAdmin(): Promise<
   const r = await resolveCenterId({ requireRole: "CENTER_ADMIN" });
   if (!r.ok) return { ok: false, error: r.message };
   return { ok: true, centerId: r.centerId, userId: r.userId };
+}
+
+/**
+ * Display name for the audit log. Best-effort: pulls from
+ * auth.user_metadata first, falls back to email-prefix, then generic.
+ */
+async function getActorName(): Promise<string> {
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return "Quản trị viên";
+    const meta = user.user_metadata as
+      | { display_name?: string; full_name?: string }
+      | undefined;
+    return (
+      meta?.display_name ||
+      meta?.full_name ||
+      user.email?.split("@")[0] ||
+      "Quản trị viên"
+    );
+  } catch {
+    return "Quản trị viên";
+  }
 }
 
 // ─── Period operations ───────────────────────────────────────────────────────
@@ -202,6 +231,24 @@ export async function addAdjustment(
     const adjustments = [...item.adjustments, next];
     const updated = recomputeFromAdjustments(item, adjustments);
     const saved = await repo.updateItem(supabase, itemId, updated);
+
+    await logAuditEntry({
+      center_id: period.center_id,
+      user_id: auth.userId,
+      action: "payroll.adjustment.add",
+      entity_type: "payroll_item",
+      entity_id: itemId,
+      before: { final_amount: item.final_amount, adjustments: item.adjustments },
+      after: { final_amount: saved.final_amount, adjustments: saved.adjustments },
+      metadata: await buildRequestMetadata({
+        actor_name: await getActorName(),
+        target_name: item.teacher_snapshot.name,
+        adjustment_type: input.type,
+        amount: input.amount,
+        reason,
+      }),
+    });
+
     return { success: true, data: saved };
   } catch (e) {
     return unexpected(e);
@@ -225,9 +272,30 @@ export async function removeAdjustment(
       return err("Kỳ lương đã được duyệt, không thể chỉnh sửa.");
     }
 
+    const removed = item.adjustments.find((a) => a.id === adjustmentId);
     const adjustments = item.adjustments.filter((a) => a.id !== adjustmentId);
     const updated = recomputeFromAdjustments(item, adjustments);
     const saved = await repo.updateItem(supabase, itemId, updated);
+
+    if (removed) {
+      await logAuditEntry({
+        center_id: period.center_id,
+        user_id: auth.userId,
+        action: "payroll.adjustment.remove",
+        entity_type: "payroll_item",
+        entity_id: itemId,
+        before: { final_amount: item.final_amount, adjustments: item.adjustments },
+        after: { final_amount: saved.final_amount, adjustments: saved.adjustments },
+        metadata: await buildRequestMetadata({
+          actor_name: await getActorName(),
+          target_name: item.teacher_snapshot.name,
+          adjustment_type: removed.type,
+          amount: removed.amount,
+          reason: removed.reason,
+        }),
+      });
+    }
+
     return { success: true, data: saved };
   } catch (e) {
     return unexpected(e);
@@ -312,6 +380,26 @@ export async function approvePeriod(
       approved_by: auth.userId,
       approved_at: new Date().toISOString(),
     });
+
+    await logAuditEntry({
+      center_id: period.center_id,
+      user_id: auth.userId,
+      action: "payroll.period.approve",
+      entity_type: "payroll_period",
+      entity_id: periodId,
+      before: { status: period.status },
+      after: {
+        status: updated.status,
+        approved_at: updated.approved_at,
+        approved_by: updated.approved_by,
+      },
+      metadata: await buildRequestMetadata({
+        actor_name: await getActorName(),
+        status_from: period.status,
+        status_to: updated.status,
+      }),
+    });
+
     return { success: true, data: updated };
   } catch (e) {
     return unexpected(e);
@@ -335,6 +423,22 @@ export async function markPeriodPaid(
       status: "PAID",
       paid_at: new Date().toISOString(),
     });
+
+    await logAuditEntry({
+      center_id: period.center_id,
+      user_id: auth.userId,
+      action: "payroll.period.mark_paid",
+      entity_type: "payroll_period",
+      entity_id: periodId,
+      before: { status: period.status },
+      after: { status: updated.status, paid_at: updated.paid_at },
+      metadata: await buildRequestMetadata({
+        actor_name: await getActorName(),
+        status_from: period.status,
+        status_to: updated.status,
+      }),
+    });
+
     return { success: true, data: updated };
   } catch (e) {
     return unexpected(e);

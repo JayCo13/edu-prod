@@ -10,7 +10,8 @@
 
 export type CourseStatus = "draft" | "published";
 export type UserRole = "student" | "teacher" | "admin";
-export type LessonType = "video" | "text" | "quiz";
+// [DEPRECATED per PRD §4.3] - hidden 2026-05-12 — LMS lesson types out of scope.
+// export type LessonType = "video" | "text" | "quiz";
 
 /* -------------------------------------------------------------------------- */
 /*  Profiles (mirrors public.profiles)                                         */
@@ -68,10 +69,12 @@ export interface CourseRow {
   updated_at: string;
 }
 
-/* -------------------------------------------------------------------------- */
-/*  Modules (mirrors public.modules)                                           */
-/* -------------------------------------------------------------------------- */
-
+// [DEPRECATED per PRD §4.3] - hidden 2026-05-12
+// LMS schema (modules, lessons, enrollments) is out of scope per PRD §1.4.
+// Tables remain in the database (see backend/supabase/migrations) but the
+// TypeScript types are commented out so active code doesn't depend on them.
+// Originals preserved here for revival reference.
+/*
 export interface ModuleRow {
   id: string;
   course_id: string;
@@ -81,10 +84,6 @@ export interface ModuleRow {
   created_at: string;
   updated_at: string;
 }
-
-/* -------------------------------------------------------------------------- */
-/*  Lessons (mirrors public.lessons — updated for Curriculum Builder)           */
-/* -------------------------------------------------------------------------- */
 
 export interface LessonRow {
   id: string;
@@ -106,10 +105,6 @@ export interface LessonRow {
   updated_at: string;
 }
 
-/* -------------------------------------------------------------------------- */
-/*  Enrollments (mirrors public.enrollments)                                   */
-/* -------------------------------------------------------------------------- */
-
 export interface EnrollmentRow {
   id: string;
   student_id: string;
@@ -122,6 +117,7 @@ export interface EnrollmentRow {
   completed_at: string | null;
   enrolled_at: string;
 }
+*/
 
 /* -------------------------------------------------------------------------- */
 /*  Live Sessions (mirrors public.live_sessions)                               */
@@ -185,20 +181,14 @@ export type CourseUpdate = Partial<
   >
 >;
 
-/* -------------------------------------------------------------------------- */
-/*  Module Insert / Update shapes                                              */
-/* -------------------------------------------------------------------------- */
-
+// [DEPRECATED per PRD §4.3] - hidden 2026-05-12 — LMS module/lesson shapes.
+/*
 export type ModuleInsert = Pick<ModuleRow, "title"> & {
   order_index?: number;
   is_published?: boolean;
 };
 
 export type ModuleUpdate = Partial<Pick<ModuleRow, "title" | "is_published">>;
-
-/* -------------------------------------------------------------------------- */
-/*  Lesson Insert / Update shapes                                              */
-/* -------------------------------------------------------------------------- */
 
 export type LessonInsert = Pick<LessonRow, "title"> & {
   lesson_type?: LessonType;
@@ -209,21 +199,23 @@ export type LessonInsert = Pick<LessonRow, "title"> & {
 export type LessonUpdate = Partial<
   Pick<LessonRow, "title" | "lesson_type" | "is_published" | "content" | "video_url" | "video_duration" | "is_free_preview">
 >;
+*/
 
 /* -------------------------------------------------------------------------- */
 /*  Composite Types (for UI)                                                   */
 /* -------------------------------------------------------------------------- */
 
-/** Module with its nested lessons — primary data shape for CurriculumBuilder */
+// [DEPRECATED per PRD §4.3] - hidden 2026-05-12 — LMS curriculum-builder shapes.
+/*
 export interface ModuleWithLessons extends ModuleRow {
   lessons: LessonRow[];
 }
 
-/** Payload for batch reordering after drag-and-drop */
 export interface ReorderPayload {
   modules: { id: string; order_index: number }[];
   lessons: { id: string; module_id: string; order_index: number }[];
 }
+*/
 
 /* -------------------------------------------------------------------------- */
 /*  Action Result (generic)                                                    */
@@ -235,10 +227,9 @@ export interface ActionResult<T = null> {
   error?: string;
 }
 
-/* -------------------------------------------------------------------------- */
-/*  Lesson Progress (mirrors public.lesson_progress)                           */
-/* -------------------------------------------------------------------------- */
-
+// [DEPRECATED per PRD §4.3] - hidden 2026-05-12
+// LMS progress + student-facing course/module/lesson types. Out of scope per PRD §1.4.
+/*
 export interface LessonProgressRow {
   id: string;
   user_id: string;
@@ -250,11 +241,6 @@ export interface LessonProgressRow {
   updated_at: string;
 }
 
-/* -------------------------------------------------------------------------- */
-/*  Public types — safe subsets for student-facing pages                        */
-/* -------------------------------------------------------------------------- */
-
-/** Lesson data safe for public consumption (no content/video_url) */
 export interface PublicLesson {
   id: string;
   title: string;
@@ -265,7 +251,6 @@ export interface PublicLesson {
   is_published: boolean;
 }
 
-/** Module with public-safe lessons for storefront/learning sidebar */
 export interface PublicModuleWithLessons {
   id: string;
   title: string;
@@ -274,7 +259,6 @@ export interface PublicModuleWithLessons {
   lessons: PublicLesson[];
 }
 
-/** Full course details for storefront page */
 export interface PublicCourseDetails {
   id: string;
   title: string;
@@ -294,3 +278,4 @@ export interface PublicCourseDetails {
   } | null;
   modules: PublicModuleWithLessons[];
 }
+*/

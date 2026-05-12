@@ -1,0 +1,54 @@
+[project]
+name = "vlearning-backend"
+version = "0.1.0"
+description = "VLearning — B2B SaaS White-label EdTech Backend"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+
+dependencies = [
+    # ── Web Framework ──────────────────────────────────────
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.30.0",
+
+    # ── Database / Supabase ────────────────────────────────
+    "supabase>=2.10.0",
+
+    # ── Redis ──────────────────────────────────────────────
+    "redis>=5.2.0",
+
+    # ── Task Queue ─────────────────────────────────────────
+    "celery[redis]>=5.4.0",
+
+    # ── Config / Environment ───────────────────────────────
+    "pydantic-settings>=2.5.0",
+
+    # ── HTTP / Utilities ───────────────────────────────────
+    "httpx>=0.27.0",
+    "python-multipart>=0.0.9",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.24.0",
+    "httpx>=0.27.0",
+    "ruff>=0.7.0",
+    "mypy>=1.12.0",
+]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "N", "UP", "B", "SIM"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"

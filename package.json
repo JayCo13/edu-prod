@@ -1,0 +1,20 @@
+{
+  "name": "vlearning",
+  "version": "0.1.0",
+  "private": true,
+  "description": "B2B SaaS White-label EdTech Platform — Monorepo",
+  "scripts": {
+    "dev:frontend": "pnpm --filter @vlearning/frontend dev",
+    "dev:backend": "cd backend && .venv/bin/uvicorn app.main:app --reload --port 8000",
+    "dev": "pnpm run dev:frontend",
+    "docker:up": "cd backend && docker compose up --build",
+    "docker:down": "cd backend && docker compose down",
+    "build:frontend": "pnpm --filter @vlearning/frontend build",
+    "lint:frontend": "pnpm --filter @vlearning/frontend lint",
+    "typecheck:frontend": "pnpm --filter @vlearning/frontend typecheck"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  }
+}

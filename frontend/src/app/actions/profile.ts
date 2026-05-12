@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { ProfileLayoutSchema, type ProfileLayout } from "@/lib/profile-schema";
-import { DEFAULT_LAYOUT } from "@/components/profile/_sample";
+import { DEFAULT_LAYOUT } from "@/_deprecated/components/profile/_sample";
 
 type Result<T> =
   | { success: true; data: T }

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { createBunnyVideoEntry, generateUploadSignature } from "@/lib/bunny/stream";
+import { createBunnyVideoEntry, generateUploadSignature } from "@/_deprecated/lib/bunny/stream";
 import type {
   ModuleRow,
   LessonRow,

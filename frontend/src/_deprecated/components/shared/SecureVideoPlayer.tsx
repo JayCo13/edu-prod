@@ -1,4 +1,4 @@
-import { generateSecureVideoToken } from "@/lib/bunny/stream";
+import { generateSecureVideoToken } from "@/_deprecated/lib/bunny/stream";
 
 interface SecureVideoPlayerProps {
   videoId: string;

@@ -18,6 +18,7 @@ import {
   PAYROLL_STATUS_LABEL,
 } from "@/modules/payroll/format";
 import AdjustmentDialog from "./AdjustmentDialog";
+import AuditLogModal from "./AuditLogModal";
 import BreakdownDrawer from "./BreakdownDrawer";
 
 interface Props {
@@ -110,6 +111,10 @@ export default function PeriodDetailClient({ period }: Props) {
               Xuất Excel
             </a>
           ) : null}
+          <AuditLogModal
+            periodId={period.id}
+            itemIds={period.items.map((i) => i.id)}
+          />
         </div>
       </div>
 

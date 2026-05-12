@@ -1,20 +1,17 @@
 import { createClient } from "@/lib/supabase/server";
-import DashboardGrid from "@/components/admin/dashboard-grid";
+import AdminDashboard from "@/modules/dashboard/AdminDashboard";
+import TeacherDashboard from "@/modules/dashboard/TeacherDashboard";
+import { resolveDashboardRole } from "@/modules/dashboard/resolveDashboardRole";
 
 /**
- * Dashboard Page (Server Component)
+ * /dashboard — role-routed entry point (PRD §8.2).
  *
- * TODO PRD §8.2: split into AdminDashboard / TeacherDashboard. Course stats
- * widget is a placeholder pending the refactor — the LMS module is out of
- * scope per PRD §4.3.
+ * The (admin)/layout.tsx above us has already gated for ANY membership
+ * (legacy tenants OR Cycle-1 user_centers); we just decide which view to
+ * render. Real data wires in later cycles.
  */
-
-// [DEPRECATED per PRD §4.3] - hidden 2026-05-12
-// import { getCourseStats } from "@/app/actions/courses";
-
 export default async function DashboardPage() {
   const supabase = await createClient();
-
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -23,15 +20,13 @@ export default async function DashboardPage() {
     user?.user_metadata?.display_name ||
     user?.user_metadata?.full_name ||
     user?.email?.split("@")[0] ||
-    "Giáo viên";
+    "Bạn";
 
-  // Placeholder until DashboardGrid is split per PRD §8.2.
-  const courseStats = { total: 0, published: 0, draft: 0 };
+  const role = await resolveDashboardRole();
 
-  return (
-    <DashboardGrid
-      userName={userName}
-      courseStats={courseStats}
-    />
+  return role === "admin" ? (
+    <AdminDashboard userName={userName} />
+  ) : (
+    <TeacherDashboard userName={userName} />
   );
 }

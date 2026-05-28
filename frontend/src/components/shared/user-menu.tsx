@@ -45,7 +45,7 @@ const MENU_ITEMS: readonly MenuItem[] = [
   {
     href: "/dashboard/calendar",
     label: "Lịch dạy",
-    sub: "Đa giáo viên · phát hiện trùng",
+    sub: "Nhiều giáo viên · cảnh báo trùng giờ",
     icon: CalendarDays,
     kinds: ["CENTER"],
   },
@@ -53,7 +53,7 @@ const MENU_ITEMS: readonly MenuItem[] = [
   {
     href: "/dashboard/timetable",
     label: "Thời khoá biểu",
-    sub: "Template tuần · in / QR cho học sinh",
+    sub: "Lưới tuần · in / QR cho học sinh",
     icon: LayoutGrid,
     accent: true,
     kinds: ["SCHOOL"],

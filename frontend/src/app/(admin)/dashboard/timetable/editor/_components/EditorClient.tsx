@@ -834,7 +834,7 @@ export default function EditorClient({
                 type="button"
                 onClick={handleOpenQr}
                 className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50"
-                title="Mã QR chia sẻ — học sinh quét xem TKB (tự cập nhật khi sửa lịch)"
+                title="Mã QR để học sinh quét xem thời khoá biểu — tự cập nhật khi bạn sửa lịch"
               >
                 <QrCode className="h-4 w-4" />
                 Mã QR chia sẻ
@@ -2220,15 +2220,15 @@ function QrShareModal({
 
                   <div className="space-y-2">
                     <div className="rounded-xl bg-slate-50/70 px-3 py-2 text-[11.5px] leading-snug text-slate-600">
-                      Học sinh / phụ huynh quét QR là xem được TKB. Trang
-                      hiển thị đầy đủ{" "}
-                      <span className="font-semibold">sáng + chiều</span>{" "}
-                      khối <span className="font-semibold">{grade}</span>.
+                      Học sinh và phụ huynh quét mã là xem được thời khoá
+                      biểu. Trang hiển thị đầy đủ{" "}
+                      <span className="font-semibold">cả buổi sáng và buổi chiều</span>{" "}
+                      của khối <span className="font-semibold">{grade}</span>.
                     </div>
                     <div className="rounded-xl border border-emerald-200/70 bg-emerald-50/60 px-3 py-2 text-[11.5px] leading-snug text-emerald-800">
-                      <span className="font-semibold">Mã QR cố định.</span>{" "}
-                      Khi bạn sửa lịch, học sinh quét lại sẽ tự thấy phiên
-                      bản mới — <span className="font-semibold">không cần tạo lại</span>.
+                      <span className="font-semibold">Mã QR dùng được lâu dài.</span>{" "}
+                      Khi bạn chỉnh lịch, lần quét sau học sinh sẽ tự thấy
+                      lịch mới — <span className="font-semibold">không cần tạo lại mã</span>.
                     </div>
                   </div>
                 </>

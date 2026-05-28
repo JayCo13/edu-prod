@@ -32,7 +32,7 @@ import type {
   Session,
 } from "./types";
 
-const DEFAULT_RULES: PayrollRules = {
+export const DEFAULT_RULES: PayrollRules = {
   hours_cap_multiplier: 1.1,
   completion_factor: 1.0,
   late_grace_minutes: 5,

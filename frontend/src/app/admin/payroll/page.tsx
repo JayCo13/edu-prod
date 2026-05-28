@@ -6,7 +6,13 @@ import {
   formatMonthYear,
   PAYROLL_STATUS_LABEL,
 } from "@/modules/payroll/format";
+import {
+  ensurePreviousMonthPeriodAction,
+  getPayoutScheduleAction,
+} from "@/modules/payroll/actions";
 import CreatePeriodDialog from "./_components/CreatePeriodDialog";
+import PayoutScheduleCard from "./_components/PayoutScheduleCard";
+import WorkflowHelpButton from "./_components/WorkflowHelpButton";
 
 export const metadata: Metadata = {
   title: "Bảng lương — VLearning",
@@ -17,7 +23,16 @@ export const metadata: Metadata = {
  * Only CENTER_ADMIN reaches this (service + RLS both check).
  */
 export default async function PayrollListPage() {
-  const result = await listPayrollPeriods();
+  // Lazy auto-generation: if the admin has configured a payout day and
+  // today is on/after it for this month, generate last month's period
+  // before we read the list. Idempotent — no-op when already created.
+  await ensurePreviousMonthPeriodAction().catch(() => null);
+
+  const [result, scheduleResult] = await Promise.all([
+    listPayrollPeriods(),
+    getPayoutScheduleAction(),
+  ]);
+  const schedule = scheduleResult.success ? scheduleResult.data : null;
 
   if (!result.success) {
     return (
@@ -45,8 +60,13 @@ export default async function PayrollListPage() {
             Tổng hợp lương theo tháng. Soạn thảo → Duyệt → Đánh dấu đã thanh toán.
           </p>
         </div>
-        <CreatePeriodDialog />
+        <div className="flex flex-shrink-0 items-center gap-2">
+          <WorkflowHelpButton />
+          <CreatePeriodDialog />
+        </div>
       </header>
+
+      {schedule && <PayoutScheduleCard schedule={schedule} />}
 
       {periods.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50/60 px-4 py-16 text-center">

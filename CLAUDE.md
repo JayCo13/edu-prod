@@ -18,12 +18,14 @@ This is a **B2B SaaS for Vietnamese education centers (trung tâm)** — schedul
 
 ## 2. Repository Layout
 
-Monorepo with two independently-runnable apps:
+Single-app monorepo (Supabase-only architecture):
 
-- `frontend/` — Next.js 16 (App Router, Turbopack, React 19, Tailwind v4). Registered as `@vlearning/frontend` in the pnpm workspace (`pnpm-workspace.yaml`). The workspace currently only contains `frontend`; the backend is **not** a pnpm package.
-- `backend/` — FastAPI + Celery + Redis, Python ≥3.11 (Dockerfile uses 3.13-slim). Dependencies are managed both via `pyproject.toml` (PEP 621) and a pinned `requirements.txt` — Docker installs from `requirements.txt`.
-- `backend/supabase/migrations/` — Numbered SQL migrations for the Supabase Postgres schema. Run via Supabase Dashboard SQL Editor or `supabase db push`. RLS is enabled on every table.
+- `frontend/` — Next.js 16 (App Router, Turbopack, React 19, Tailwind v4). All server logic lives in **Server Actions** + Next.js **Route Handlers**; no separate API server. Registered as `@vlearning/frontend` in the pnpm workspace.
+- `backend/supabase/migrations/` — Numbered SQL migrations for the Supabase Postgres schema. Apply via `pnpm db:push` (or paste into Supabase Dashboard SQL Editor). RLS is enabled on every table.
+- `backend/supabase/already/` — Snapshots of already-applied schema (reference only, not pending migrations).
 - `PRD.md` — Product requirements. Source of truth for product direction.
+
+> The earlier FastAPI + Celery + Redis backend was removed once all CRUD shifted to Server Actions and email moved to Gmail SMTP via nodemailer. The only thing left under `backend/` is the Supabase schema.
 
 ## 3. Target code structure (new work goes here)
 
@@ -85,35 +87,18 @@ The `IGNORED_SUBDOMAINS` set and subdomain regex in `lib/supabase/middleware.ts`
 
 ## 6. Common Commands
 
-From repo root (uses pnpm workspaces / a local `.venv` at `backend/.venv`):
+From repo root:
 
 ```bash
-pnpm dev:frontend            # next dev --turbopack on :3000
-pnpm dev:backend             # uvicorn app.main:app --reload --port 8000
-pnpm build:frontend          # next build
-pnpm lint:frontend           # eslint
-pnpm typecheck:frontend      # tsc --noEmit
-pnpm docker:up               # docker compose up --build (api + redis + worker)
-pnpm docker:down
+pnpm dev                     # next dev --turbopack on :3000
+pnpm build                   # next build
+pnpm lint                    # eslint
+pnpm typecheck               # tsc --noEmit
+pnpm db:push                 # apply any pending backend/supabase/migrations/*.sql
+pnpm db:push:dry             # list pending migrations without applying
 ```
 
-Backend tests (from `backend/`, with `.venv` activated):
-
-```bash
-.venv/bin/pytest                                    # all tests
-.venv/bin/pytest tests/test_users.py                # single file
-.venv/bin/pytest tests/test_users.py::test_name     # single test
-```
-
-`pyproject.toml` configures `asyncio_mode = "auto"` and `testpaths = ["tests"]`. Lint/type tools: `ruff` (line-length 100, rules `E,W,F,I,N,UP,B,SIM`) and `mypy --strict`.
-
-Celery worker (local, outside Docker):
-
-```bash
-cd backend && .venv/bin/celery -A app.worker.celery_app worker --loglevel=info --concurrency=2
-```
-
-The `worker` Compose service runs the same command. The `emails` queue is routed explicitly in `app/worker/celery_app.py`; new task routes go in the same `task_routes` dict.
+`db:push` reads `SUPABASE_DB_URL` from `backend/.env.local` (Supabase Dashboard → Settings → Database → Connection string → "Transaction" pooler URI; paste with your DB password). Pending migrations are detected against `public._schema_migrations`, applied in lexicographic order, each in its own transaction.
 
 ## 7. Architecture
 
@@ -141,37 +126,41 @@ Route protection (redirect `/dashboard` → `/login` if unauthenticated; redirec
 - `t/[slug]/` — pages reached via the middleware subdomain rewrite. Frozen pending PRD open question #5.
 - `actions/` — `"use server"` Server Actions. New mutations should live in `modules/<name>/actions.ts` instead.
 
-### 7.3 Data access split
+### 7.3 Data access
 
-There are **two separate paths** to the database, and they coexist:
+Single path: **Frontend → Supabase directly** via `@supabase/ssr` (Server Actions, Server Components, Client Components, Route Handlers). RLS policies in `backend/supabase/migrations/*.sql` enforce auth and tenant isolation. No separate API server.
 
-1. **Frontend → Supabase directly** (Server Actions / Server Components / Client Components via `@supabase/ssr`). Dominant path. RLS policies in `backend/supabase/migrations/*.sql` enforce auth.
-2. **Frontend → FastAPI → Supabase** via `lib/api-client.ts` (axios, Bearer token from `access_token` cookie). The backend currently exposes only `/api/v1/users`. The api-client has a `TODO` to migrate from manual cookies to `@supabase/ssr` session reading. Don't assume new features need a FastAPI endpoint — most CRUD goes through Server Actions.
+For compute-heavy work (payroll calculation per PRD §5.8), the engine lives in `frontend/src/modules/payroll/` as pure TypeScript with unit tests. Server Actions orchestrate; Route Handlers expose downloadable artifacts (e.g. Excel/PDF export at `/api/v1/payroll-periods/[id]/export`).
 
-For payroll specifically, the calculation engine should live in `backend/app/services/payroll/` and be reachable from the frontend via a FastAPI endpoint (it's pure computation that benefits from a typed Python service with unit tests). UI orchestration stays in Server Actions.
+### 7.4 External services
 
-### 7.4 Backend layout (`backend/app/`)
-
-- `main.py` — FastAPI factory with lifespan that opens/closes the Redis pool. Health check at `/health`. Docs at `/docs` (only when `DEBUG=true`).
-- `core/` — `config.py` (pydantic-settings, env-driven; comma-separated `CORS_ORIGINS` parsed by `cors_origins_list`), `redis.py` (singleton `redis_manager`), `supabase.py`, `dependencies.py`.
-- `api/v1/router.py` aggregates `endpoints/*.py` routers. Add new endpoint modules and register them here.
-- `services/` — Domain services. When adding third-party integrations, prefer an ABC interface ("port") + concrete adapter so the rest of the app depends on the interface, not the vendor.
-- `worker/` — Celery app + tasks. Broker/backend default to Redis DBs 0/1.
-- `models/` — Pydantic models (not ORM — Supabase is the source of truth for schema).
-
-### 7.5 External services
-
-- **Supabase** (Postgres + Auth + Storage). Schema in `backend/supabase/migrations/`. Apply migrations in numeric order. New migrations: next `NNNN_description.sql`. Files in `backend/supabase/already/` are already-applied snapshots, not pending migrations.
+- **Supabase** (Postgres + Auth + Storage). Schema in `backend/supabase/migrations/`. Apply migrations in numeric order via `pnpm db:push`. New migrations: next `NNNN_description.sql`. Files in `backend/supabase/already/` are already-applied snapshots, not pending migrations.
+  - **Admin auth APIs** (e.g. `auth.admin.createUser`, `inviteUserByEmail`, `updateUserById`, `listUsers`) require `SUPABASE_SERVICE_ROLE_KEY` in `.env.local`. Only call from server actions / route handlers via `createAdminClient()` in `lib/supabase/admin.ts` — never from a Client Component.
 - **Bunny Stream** for video hosting. Server-only helpers in `frontend/src/lib/bunny/stream.ts`. **Deprecated for v1** since LMS is out of scope — don't add features here.
-- **Resend** for transactional email (`frontend/src/lib/email/sender.ts`, `frontend/src/emails/`). Backend has its own `email_service.py` for Celery-driven sends.
+- **Email — Gmail SMTP via nodemailer** (`frontend/src/lib/email/sender.ts`, templates in `frontend/src/emails/`). Env: `SMTP_HOST` (default `smtp.gmail.com`), `SMTP_PORT` (587 STARTTLS / 465 SSL), `SMTP_USER`, `SMTP_PASSWORD` (16-char Google App Password — requires 2FA on the account), `SMTP_FROM`. Free Gmail caps ~500 recipients/day; Workspace ~2000.
 - **Live meetings (BYOM):** platform does **not** host video calls. Sessions store a `meeting_url` (Zoom/Meet/Teams/Jitsi); provider is auto-detected from hostname (`frontend/src/lib/meeting-provider.ts`). Do not add server-side meeting creation.
+
+### 7.5 Teacher onboarding flow
+
+Admins add teachers from `/dashboard/teachers` (no sidebar quick-action — each page owns its own trigger). The create dialog collects email + a temp password and calls `createTenantTeacher` (`app/actions/tenant-teachers.ts`), which:
+
+1. Looks up the email in `auth.users`. If it exists, links to that user (cross-center re-add).
+2. Otherwise creates the auth account directly via `admin.auth.admin.createUser({ email, password, email_confirm: true })` and stamps `user_metadata`:
+   - `must_change_password: true`
+   - `password_change_deadline: now + 24h` (ISO)
+3. Inserts the `tenant_teachers` row with `profile_id` already linked (no waiting for a magic-link callback).
+4. Sends a branded credentials email via `sendWhiteLabelEmail` containing the email + plaintext temp password + a 24h CTA pointing at `/auth/change-password`. Email failure is **non-blocking** (returned as `result.warning`); the account still exists, admin can share creds manually.
+
+The teacher visits `/auth/change-password` to set their own password. The page + the `changePasswordAction` (`app/auth/change-password/actions.ts`) both check the deadline — once `must_change_password === true` AND `password_change_deadline < now`, self-service is locked and the admin must reset. On the first successful change, both flags are cleared so future changes are unrestricted.
+
+The earlier magic-link invite path (`auth.admin.inviteUserByEmail` + `/auth/setup` route) is no longer wired up for teacher creation. `/auth/setup` still exists for any other invite flows but isn't reached from `createTenantTeacher`.
 
 ## 8. Conventions
 
 ### 8.1 Code
 
 - **TypeScript strict mode** on frontend.
-- **API style:** RESTful (FastAPI) or Server Actions. No tRPC, no GraphQL.
+- **Server logic:** Server Actions for mutations + Next.js Route Handlers for files / streaming responses. No separate API server, no tRPC, no GraphQL.
 - **State:** Server state via React Query (`lib/query-provider.tsx`); client state via React Context or component-local.
 - **Forms:** React Hook Form + Zod.
 - **Dates:** `date-fns` or `dayjs`. Never `moment.js`.
@@ -209,8 +198,8 @@ When unsure if something belongs in this sprint, check the phase. If it's a Phas
 
 ## 10. Things that bite
 
-- The `package.json` `dev` script aliases to `dev:frontend` only — running both apps requires two terminals (or `docker:up` for the backend stack). The `package.json description` field still says "White-label EdTech" — leftover from before the pivot; harmless.
-- New migrations: use the next `NNNN_description.sql` number; do not edit applied migrations. The `0012_multi_teacher_calendar.sql` schema is the current baseline for tenant teachers; the centers/classes/sessions/attendance/payroll tables (PRD §6) are not yet migrated.
+- New migrations: use the next `NNNN_description.sql` number; do not edit applied migrations. Always apply via `pnpm db:push` (or the Dashboard SQL Editor) — the file alone doesn't take effect.
 - The product is Vietnamese-first. When adding copy, **don't translate literally from English** — use natural Vietnamese phrasing.
 - Payroll is the killer feature and must match a manual Excel calculation for 100% of test cases (PRD §5.8). Treat the calculation engine as untouchable without unit tests.
 - "Tenant" still appears in code (table names, helper names like `getCurrentTenantContext`). Don't blanket-rename until a migration lands — but in new code prefer "center" vocabulary.
+- The earlier Python/FastAPI/Celery backend was removed (everything runs through Supabase + Server Actions now). If you find old references to `lib/api-client.ts`, `backend/app/`, `docker:up`, or `dev:backend`, they're stale — delete or update them.

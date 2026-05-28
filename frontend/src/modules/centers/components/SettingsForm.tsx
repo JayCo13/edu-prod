@@ -36,7 +36,6 @@ export default function SettingsForm({ center, canEdit }: Props) {
   const [name, setName] = useState(center.name);
   const [address, setAddress] = useState(center.address);
   const [phone, setPhone] = useState(center.phone);
-  const [logoUrl, setLogoUrl] = useState(center.logo_url);
   const [timezone, setTimezone] = useState(center.timezone);
   const [businessHoursOpen, setBusinessHoursOpen] = useState(
     center.settings.business_hours?.open ?? "08:00",
@@ -57,7 +56,6 @@ export default function SettingsForm({ center, canEdit }: Props) {
         name,
         address,
         phone,
-        logo_url: logoUrl,
         timezone,
         settings: {
           business_hours: {
@@ -121,17 +119,6 @@ export default function SettingsForm({ center, canEdit }: Props) {
             maxLength={40}
             className={INPUT_CLASS}
             placeholder="VD: 0901 234 567"
-          />
-        </Field>
-
-        <Field label="URL Logo">
-          <input
-            type="url"
-            value={logoUrl}
-            onChange={(e) => setLogoUrl(e.target.value)}
-            disabled={!canEdit || isPending}
-            className={INPUT_CLASS}
-            placeholder="https://..."
           />
         </Field>
       </section>

@@ -14,6 +14,7 @@
 import "server-only";
 
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import type { TenantRow } from "@/types/database";
 
 export interface TenantContext {
@@ -61,7 +62,15 @@ export async function getCurrentTenantContext(): Promise<TenantContext> {
   }
 
   // Path 2: caller is a teacher in someone else's tenant.
-  const { data: slot } = await supabase
+  //
+  // The user-scoped client can't reliably read the slot here: the
+  // tenant_teachers SELECT policy delegates to public.current_tenant_teacher_id,
+  // which (before migration 0020) recursively re-enters the same policy and
+  // never resolves for a non-admin. Use the service-role client just to
+  // resolve the user → slot/tenant binding; downstream queries still go
+  // through the user-scoped client so RLS continues to gate every read.
+  const admin = createAdminClient();
+  const { data: slot } = await admin
     .from("tenant_teachers")
     .select("id, tenant_id, is_admin, tenant:tenants!tenant_teachers_tenant_id_fkey(*)")
     .eq("profile_id", user.id)

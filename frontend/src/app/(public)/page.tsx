@@ -1,22 +1,22 @@
 import type { Metadata } from "next";
 
 import HeroSection from "@/components/landing/hero-section";
-import SocialProof from "@/components/landing/social-proof";
 import BentoGrid from "@/components/landing/bento-grid";
 import HowItWorks from "@/components/landing/how-it-works";
 import Pricing from "@/components/landing/pricing";
-import Testimonial from "@/components/landing/testimonial";
 import FAQ from "@/components/landing/faq";
 import CTASection from "@/components/landing/cta-section";
+// SocialProof + Testimonial bị tắt cho đến khi có số liệu / quote thật từ
+// trung tâm. File vẫn nằm trong components/landing/ — import lại khi cần.
 
 export const metadata: Metadata = {
-  title: "VLearning — Bệ phóng cho sự nghiệp giảng dạy",
+  title: "VLearning — Phần mềm quản lý trung tâm giáo dục",
   description:
-    "Tạo website khóa học mang tên miền của riêng bạn, bán video VOD bảo mật, tổ chức lớp live qua Zoom — VLearning lo phần kỹ thuật, bạn chỉ cần dạy.",
+    "Một chỗ quản lịch dạy, điểm danh, và tính lương giáo viên cho trung tâm. Đang trong giai đoạn early access.",
   openGraph: {
-    title: "VLearning — Bệ phóng cho sự nghiệp giảng dạy",
+    title: "VLearning — Phần mềm quản lý trung tâm giáo dục",
     description:
-      "Nền tảng SaaS White-label EdTech dành cho giáo viên độc lập. Tạo, thương hiệu hóa và bán khóa học dưới tên miền riêng.",
+      "Bảng lương + lịch dạy + quản lý giáo viên cho trung tâm Việt Nam. Trả theo số giáo viên active.",
   },
 };
 
@@ -24,11 +24,9 @@ export default function LandingPage() {
   return (
     <>
       <HeroSection />
-      <SocialProof />
       <BentoGrid />
       <HowItWorks />
       <Pricing />
-      <Testimonial />
       <FAQ />
       <CTASection />
     </>

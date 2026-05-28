@@ -171,3 +171,127 @@ html {
   margin: 0.5em 0;
   line-height: 1.7;
 }
+
+/* ── TKB Room mode ───────────────────────────────────────────────────────
+   When the editor enters "Phòng xếp TKB" mode, all surrounding chrome
+   (sidebar, top navbar, section header, timetable tabs) is hidden so the
+   admin can focus on scheduling with both Sáng + Chiều visible at once. */
+body[data-tkb-room="true"] {
+  overflow: hidden;
+}
+body[data-tkb-room="true"] aside,
+body[data-tkb-room="true"] [data-tkb-chrome="true"] {
+  display: none !important;
+}
+body[data-tkb-room="true"] main {
+  padding: 0 !important;
+  overflow: visible !important;
+}
+body[data-tkb-room="true"] main > div {
+  max-width: none !important;
+}
+
+/* ── Print: Timetable (TKB) ──────────────────────────────────────────────
+   PDF download is now handled by @react-pdf/renderer (TkbPdfDocument.tsx)
+   for pixel-perfect output. These rules remain as a fallback for users
+   who Cmd+P / Ctrl+P the screen directly (they'll get a screenshot-style
+   capture of the on-screen view). */
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 5mm;
+  }
+  html,
+  body {
+    background: white !important;
+  }
+  /* Belt-and-braces: <aside> sidebars and anything explicitly tagged. */
+  aside,
+  [data-print-hidden="true"] {
+    display: none !important;
+  }
+  /* Strip main's screen padding so the printed sheet hugs the page margin. */
+  main {
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+  .tkb-print {
+    border: none !important;
+    box-shadow: none !important;
+    /* CRITICAL: PerGradeView's screen root has `overflow-hidden` for rounded
+       corners. In print that clips everything past the first page — fatal
+       when a shift needs 2 pages. Force visible so content flows. */
+    overflow: visible !important;
+    /* Each shift block is its own printing region — gives the browser
+       a clean break point and prevents the previous block's height from
+       affecting the next page's layout. */
+    page-break-inside: auto;
+  }
+  /* Same fix for any wrapper inside that might also have overflow constraints
+     (the inner div around the table uses overflow-x-auto). */
+  .tkb-print > div {
+    overflow: visible !important;
+  }
+  /* Two `.tkb-print` blocks in a row (e.g. Sáng + Chiều) → force each onto
+     its own page. */
+  .tkb-print + .tkb-print {
+    page-break-before: always;
+  }
+  /* Readable font that doesn't squish columns. One shift may need 2 pages
+     for all 6 day-blocks; that's the right tradeoff vs unreadable squish. */
+  .tkb-print table {
+    font-size: 9px !important;
+    line-height: 1.15 !important;
+    width: 100% !important;
+    table-layout: auto !important;
+  }
+  .tkb-print th,
+  .tkb-print td {
+    padding: 2px 3px !important;
+    line-height: 1.15 !important;
+  }
+  /* Day-number cell (rowspan merged THỨ column). */
+  .tkb-print td[rowspan] {
+    font-size: 13px !important;
+  }
+  /* Class column header — keep the homeroom-teacher line readable in print
+     (10.5px bold) so it doesn't get squished to illegibility. */
+  .tkb-print thead th div:last-child {
+    font-size: 10.5px !important;
+    font-weight: 700 !important;
+  }
+  /* Compact header band — frees vertical room without making titles tiny. */
+  .tkb-print > header {
+    padding: 4px 8px !important;
+    border-bottom-width: 1px !important;
+  }
+  .tkb-print > header h1 {
+    font-size: 14px !important;
+    line-height: 1.15 !important;
+  }
+  .tkb-print > header p {
+    font-size: 9px !important;
+    line-height: 1.15 !important;
+    margin: 0 !important;
+  }
+  /* Footer note + screen-only legend hidden when printed. */
+  .tkb-print > p,
+  .tkb-print > footer {
+    display: none !important;
+  }
+  /* Keep each day-block (its own <tbody>) together. Page breaks happen
+     BETWEEN tbody boundaries, never mid-day. */
+  .tkb-print tbody {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  .tkb-print tr {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  /* The screen `thead` is styled as a single block; in print, repeat it on
+     each new page so the class column headers stay visible. */
+  .tkb-print thead {
+    display: table-header-group;
+  }
+}

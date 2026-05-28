@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { getPayrollPeriod } from "@/modules/payroll/service";
+import { getPayoutScheduleAction } from "@/modules/payroll/actions";
 import {
   formatDateVN,
   formatMonthYear,
@@ -32,6 +33,12 @@ export default async function PayrollPeriodDetailPage({ params }: PageProps) {
   }
 
   const period = result.data;
+  // Used by PeriodDetailClient to warn when the admin clicks "Duyệt và khoá"
+  // too far before the configured monthly payout day.
+  const scheduleResult = await getPayoutScheduleAction();
+  const payoutDay = scheduleResult.success
+    ? scheduleResult.data.payout_day
+    : null;
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
@@ -49,7 +56,7 @@ export default async function PayrollPeriodDetailPage({ params }: PageProps) {
         </p>
       </header>
 
-      <PeriodDetailClient period={period} />
+      <PeriodDetailClient period={period} payoutDay={payoutDay} />
     </div>
   );
 }

@@ -7,6 +7,7 @@ import type { TenantTeacherRow } from "@/types/database";
 import SessionList from "./SessionList";
 import WeekView from "./WeekView";
 import MonthView from "./MonthView";
+import SessionDetailsDialog from "./SessionDetailsDialog";
 
 type ViewId = "week" | "month" | "list";
 type LensId = "all" | "mine";
@@ -15,6 +16,8 @@ interface CalendarBoardProps {
   sessions: TeacherSessionRow[];
   teachers: Pick<TenantTeacherRow, "id" | "display_name" | "color" | "is_admin">[];
   currentTeacherId: string | null;
+  /** Center admin gate. Enables Edit / Cancel actions in the details dialog. */
+  isAdmin: boolean;
 }
 
 const VI_MONTHS = [
@@ -70,9 +73,12 @@ export default function CalendarBoard({
   sessions,
   teachers,
   currentTeacherId,
+  isAdmin,
 }: CalendarBoardProps) {
   const [view, setView] = useState<ViewId>("week");
   const [cursor, setCursor] = useState<Date>(() => new Date());
+  const [selectedSession, setSelectedSession] =
+    useState<TeacherSessionRow | null>(null);
 
   // Multi-teacher controls only render when the tenant has more than one slot.
   const hasMultiTeacher = teachers.length > 1;
@@ -273,7 +279,11 @@ export default function CalendarBoard({
 
       {/* Body */}
       {view === "week" && (
-        <WeekView sessions={filteredSessions} weekStart={weekStart} />
+        <WeekView
+          sessions={filteredSessions}
+          weekStart={weekStart}
+          onSelectSession={setSelectedSession}
+        />
       )}
       {view === "month" && (
         <MonthView
@@ -286,6 +296,14 @@ export default function CalendarBoard({
         />
       )}
       {view === "list" && <SessionList sessions={filteredSessions} />}
+
+      <SessionDetailsDialog
+        session={selectedSession}
+        onClose={() => setSelectedSession(null)}
+        isAdmin={isAdmin}
+        currentTeacherId={currentTeacherId}
+        teachers={teachers}
+      />
     </div>
   );
 }

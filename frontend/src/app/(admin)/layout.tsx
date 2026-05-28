@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import AdminShell from "@/components/admin/admin-shell";
 
 /**
@@ -48,8 +49,14 @@ export default async function AdminLayout({
     .maybeSingle();
 
   if (!tenant) {
+    // Use the service-role client for the teacher-slot probe — the user-
+    // scoped client can't reliably read tenant_teachers for non-admins
+    // (the SELECT policy recurses through public.current_tenant_teacher_id
+    // before migration 0020). We're only checking "does a slot exist for
+    // this user.id", which is the same bit the policy ultimately exposes.
+    const admin = createAdminClient();
     const [{ data: teacherSlot }, { data: profile }] = await Promise.all([
-      supabase
+      admin
         .from("tenant_teachers")
         .select("id")
         .eq("profile_id", user.id)

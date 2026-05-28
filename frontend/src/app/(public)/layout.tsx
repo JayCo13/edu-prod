@@ -1,15 +1,26 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { ArrowRight } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { safeGetUser } from "@/lib/supabase/safe-auth";
 import UserMenu, { type UserMenuData } from "@/components/shared/user-menu";
 import { ACCENT } from "@/components/landing/_accent";
 
+const NAV_ITEMS = [
+  { label: "Tính năng", href: "/#features" },
+  { label: "Bảng giá", href: "/#pricing" },
+  { label: "FAQ", href: "/#faq" },
+  { label: "Liên hệ", href: "mailto:hello@vlearning.io" },
+];
+
+// Footer columns — B2B center-owner positioning.
+// Replaces the old teacher-storefront columns. Copy comes from the
+// design bundle's Footer in landing-sections.jsx.
 const FOOTER_COLS = [
-  { h: "Sản phẩm", l: ["Tính năng", "Bảng giá", "Tích hợp", "API docs"] },
-  { h: "Khám phá", l: ["Khóa học", "Giáo viên", "Câu chuyện thành công", "Blog"] },
-  { h: "Hỗ trợ", l: ["Trung tâm trợ giúp", "Liên hệ", "Trạng thái hệ thống", "Cộng đồng"] },
-  { h: "Pháp lý", l: ["Điều khoản", "Chính sách bảo mật", "Cookie", "DMCA"] },
+  { h: "SẢN PHẨM", l: ["Tính năng", "Bảng giá", "Bảng lương", "Lịch dạy", "Tích hợp"] },
+  { h: "DÀNH CHO", l: ["Trung tâm Anh ngữ", "Luyện thi", "Gia sư đội nhóm", "Trường liên kết"] },
+  { h: "HỖ TRỢ", l: ["Hướng dẫn sử dụng", "Liên hệ", "Trạng thái hệ thống", "Yêu cầu tính năng"] },
+  { h: "PHÁP LÝ", l: ["Điều khoản", "Bảo mật & RLS", "Cookie", "Hợp đồng mẫu"] },
 ];
 
 export default async function PublicLayout({
@@ -40,52 +51,111 @@ export default async function PublicLayout({
 
   return (
     <>
-      {/* ── Header ─────────────────────────────────────────── */}
-      <header className="sticky top-0 z-40 border-b border-slate-200/60 bg-white/75 backdrop-blur-xl">
-        <nav className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6 lg:px-10">
-          <Link
-            href="/"
-            className="flex items-center gap-2.5 text-[17px] font-bold tracking-tight text-slate-900"
-          >
-            <span
-              className="grid h-8 w-8 place-items-center rounded-[10px] text-[11px] font-black text-white"
-              style={{
-                background: `linear-gradient(135deg, ${ACCENT.from}, ${ACCENT.to})`,
-              }}
+      {/* ── Header ─────────────────────────────────────────────
+          Three-zone layout: branded logo + BETA pill (left), floating
+          capsule nav (center, md+), 2-button CTA group (right). The BETA
+          pill with the pulsing dot is the deliberate visual focal point —
+          it doubles as honest product-stage signaling and as a kinetic
+          accent that draws the eye on otherwise static chrome. */}
+      <header
+        className="sticky top-0 z-40 bg-white"
+        style={{
+          // Same "premium accent ring" treatment as the Growth pricing card.
+          //   • soft accent glow projecting ~28px downward into the page
+          //   • the bottom accent strip is rendered as a separate absolutely
+          //     positioned div so it can use a *gradient* (vibrant in the
+          //     middle, fades at the edges) — a single flat colored border
+          //     looked too dense across full viewport width.
+          boxShadow: `0 14px 32px -16px ${ACCENT.shadow}, 0 0 0 1px rgb(15 23 42 / 0.03)`,
+        }}
+      >
+        <nav className="mx-auto flex h-20 max-w-7xl items-center justify-between px-6 lg:px-10">
+          {/* Left: logo + product stage badge */}
+          <div className="flex items-center gap-3">
+            <Link
+              href="/"
+              className="group flex items-center gap-2.5 text-[16.5px] font-bold tracking-tight text-slate-900"
             >
-              V
+              <span
+                className="grid h-9 w-9 place-items-center rounded-[10px] text-[12px] font-black text-white shadow-[0_4px_12px_-2px_rgba(79,70,229,0.45)] ring-1 ring-inset ring-white/15 transition-transform group-hover:scale-[1.04]"
+                style={{
+                  background: `linear-gradient(135deg, ${ACCENT.from}, ${ACCENT.to})`,
+                }}
+              >
+                V
+              </span>
+              <span className="font-display">VLearning</span>
+            </Link>
+            <span className="hidden items-center gap-1.5 rounded-full border border-emerald-200/70 bg-emerald-50/70 px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-emerald-700 lg:inline-flex">
+              <span className="relative flex h-1.5 w-1.5">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-70" />
+                <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
+              </span>
+              Early access
             </span>
-            VLearning
-          </Link>
+          </div>
 
-          <ul className="hidden items-center gap-9 text-[14px] font-medium text-slate-600 md:flex">
-            <li>
-              <Link href="/#features" className="transition-colors hover:text-slate-900">
-                Tính năng
-              </Link>
-            </li>
-            <li>
-              <Link href="/#how" className="transition-colors hover:text-slate-900">
-                Cách hoạt động
-              </Link>
-            </li>
-            <li>
-              <Link href="/#pricing" className="transition-colors hover:text-slate-900">
-                Bảng giá
-              </Link>
-            </li>
-            {/* [DEPRECATED per PRD §4.3] - hidden 2026-05-12
-                Public teacher directory (marketplace) is out of scope.
-            <li>
-              <Link href="/teachers" className="transition-colors hover:text-slate-900">
-                Giáo viên
-              </Link>
-            </li>
-            */}
+          {/* Center: floating capsule nav (md+ only — mobile uses UserMenu) */}
+          <ul className="absolute left-1/2 hidden -translate-x-1/2 items-center gap-0.5 rounded-full border border-slate-200/80 bg-white px-2 py-1.5 shadow-[0_4px_16px_-4px_rgb(15_23_42/0.08)] md:flex">
+            {NAV_ITEMS.map((it) => (
+              <li key={it.href}>
+                <Link
+                  href={it.href}
+                  className="block rounded-full px-4 py-2 text-[13px] font-medium text-slate-600 transition-all hover:bg-slate-100/70 hover:text-slate-900"
+                >
+                  {it.label}
+                </Link>
+              </li>
+            ))}
           </ul>
 
-          <UserMenu user={userData} />
+          {/* Right: auth + primary CTA.
+              3-tier visual hierarchy:
+                · Đăng nhập   — ghost text link (tertiary)
+                · Đăng ký     — outlined pill (secondary)
+                · Đặt lịch demo — solid accent CTA (primary) */}
+          <div className="flex items-center gap-2">
+            {!userData && (
+              <>
+                <Link
+                  href="/login"
+                  className="hidden rounded-xl px-3 py-2 text-[13.5px] font-medium text-slate-600 transition-colors hover:bg-slate-100/70 hover:text-slate-900 sm:inline-block"
+                >
+                  Đăng nhập
+                </Link>
+                <Link
+                  href="/register"
+                  className="hidden items-center rounded-xl border border-slate-200 bg-white px-4 py-2 text-[13.5px] font-semibold text-slate-700 shadow-sm transition-all hover:-translate-y-0.5 hover:border-slate-300 hover:text-slate-900 hover:shadow md:inline-flex"
+                >
+                  Đăng ký
+                </Link>
+                <Link
+                  href="/#demo"
+                  className="group hidden items-center gap-1.5 rounded-xl px-5 py-2.5 text-[13.5px] font-semibold text-white transition-all hover:-translate-y-0.5 hover:shadow-lg active:scale-[0.98] sm:inline-flex"
+                  style={{
+                    background: ACCENT.solid,
+                    boxShadow: `0 8px 20px -6px ${ACCENT.shadow}`,
+                  }}
+                >
+                  Đặt lịch demo
+                  <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                </Link>
+              </>
+            )}
+            <UserMenu user={userData} />
+          </div>
         </nav>
+        {/* Bottom accent strip — gradient line that fades at the viewport
+            edges and peaks vibrant in the middle. Sticky <header> already
+            establishes a positioning context so this absolute child anchors
+            to it. */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 bottom-0 h-[1.5px]"
+          style={{
+            background: `linear-gradient(90deg, transparent 0%, ${ACCENT.tint} 12%, ${ACCENT.solid}80 50%, ${ACCENT.tint} 88%, transparent 100%)`,
+          }}
+        />
       </header>
 
       {/* ── Main Content ───────────────────────────────────── */}
@@ -111,19 +181,19 @@ export default async function PublicLayout({
                 VLearning
               </Link>
               <p className="mt-4 max-w-xs text-[13px] leading-relaxed text-slate-500">
-                Bệ phóng độc lập cho sự nghiệp giảng dạy của bạn. White-label
-                EdTech SaaS made in Vietnam.
+                Phần mềm quản lý trung tâm giáo dục: lịch dạy, lương giáo viên,
+                thời khoá biểu — gom về một chỗ.
               </p>
-              <div className="mt-5 flex items-center gap-2">
-                {["Twitter", "Facebook", "YouTube", "GitHub"].map((s) => (
+              <div className="mt-5 space-y-1.5 font-mono text-[11px] text-slate-500">
+                <p>
                   <a
-                    key={s}
-                    href="#"
-                    className="grid h-8 w-8 place-items-center rounded-lg border border-slate-200 font-mono text-[10px] font-semibold text-slate-500 transition-colors hover:border-slate-300 hover:text-slate-900"
+                    href="mailto:hello@vlearning.io"
+                    className="transition-colors hover:text-slate-900"
                   >
-                    {s[0]}
+                    hello@vlearning.io
                   </a>
-                ))}
+                </p>
+                <p className="text-slate-400">Việt Nam · Early access</p>
               </div>
             </div>
             {FOOTER_COLS.map((c) => (
@@ -145,10 +215,10 @@ export default async function PublicLayout({
           </div>
           <div className="mt-14 flex flex-col items-start justify-between gap-4 border-t border-slate-100 pt-8 sm:flex-row sm:items-center">
             <p className="text-[12px] text-slate-400">
-              © {new Date().getFullYear()} VLearning. All rights reserved.
+              © {new Date().getFullYear()} VLearning. Giai đoạn early access.
             </p>
             <p className="font-mono text-[12px] text-slate-400">
-              v.2.4.1 · 99.98% uptime · made with ♥ in Hanoi
+              Made in Vietnam.
             </p>
           </div>
         </div>

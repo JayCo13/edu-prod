@@ -1,7 +1,6 @@
 "use client";
 
 import { motion } from "framer-motion";
-import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
 /**
@@ -15,9 +14,10 @@ interface WidgetCardProps {
   title: string;
   /** Tiny eyebrow label above the title; usually a temporal label like "Hôm nay". */
   eyebrow?: string;
-  icon?: LucideIcon;
+  /** Pre-rendered icon element (e.g. `<Calendar className="h-5 w-5" />`). Must be an element, not a component reference — this component is a Client boundary and component refs can't be serialized from RSC. */
+  icon?: ReactNode;
   /** Accent applied to the icon + eyebrow color. */
-  accent?: "indigo" | "amber" | "emerald" | "rose" | "slate";
+  accent?: "indigo" | "amber" | "emerald" | "rose" | "slate" | "cyan";
   /** Adds a "Xem chi tiết" CTA in the header. The href is omitted here — wire later. */
   showSeeMore?: boolean;
   children: ReactNode;
@@ -29,6 +29,7 @@ const ACCENT_BG: Record<NonNullable<WidgetCardProps["accent"]>, string> = {
   emerald: "bg-emerald-50 text-emerald-600",
   rose: "bg-rose-50 text-rose-600",
   slate: "bg-slate-100 text-slate-600",
+  cyan: "bg-cyan-50 text-cyan-600",
 };
 
 const ACCENT_TEXT: Record<NonNullable<WidgetCardProps["accent"]>, string> = {
@@ -37,12 +38,13 @@ const ACCENT_TEXT: Record<NonNullable<WidgetCardProps["accent"]>, string> = {
   emerald: "text-emerald-600",
   rose: "text-rose-600",
   slate: "text-slate-500",
+  cyan: "text-cyan-700",
 };
 
 export default function WidgetCard({
   title,
   eyebrow,
-  icon: Icon,
+  icon,
   accent = "slate",
   showSeeMore = false,
   children,
@@ -56,12 +58,12 @@ export default function WidgetCard({
     >
       <header className="flex items-start justify-between gap-3">
         <div className="flex items-start gap-3">
-          {Icon ? (
+          {icon ? (
             <div
               className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${ACCENT_BG[accent]}`}
               aria-hidden
             >
-              <Icon className="h-5 w-5" />
+              {icon}
             </div>
           ) : null}
           <div className="min-w-0">

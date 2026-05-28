@@ -55,6 +55,9 @@ export interface StoredAdjustment {
   created_by: string | null;
 }
 
+/** Mirrors public.payroll_items.payment_method enum (migration 0026). */
+export type PayrollItemPaymentMethod = "BANK_TRANSFER" | "CASH";
+
 export interface PayrollItemRow {
   id: string;
   payroll_period_id: string;
@@ -66,6 +69,11 @@ export interface PayrollItemRow {
   breakdown: PayrollBreakdown;
   audit_trail: AuditEntry[];
   notes: string;
+  /** Per-item payout (migration 0026). NULL until admin marks paid. */
+  payment_method: PayrollItemPaymentMethod | null;
+  paid_at: string | null;
+  paid_by: string | null;
+  paid_note: string;
   created_at: string;
   updated_at: string;
 }

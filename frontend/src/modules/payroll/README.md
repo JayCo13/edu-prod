@@ -35,11 +35,11 @@ Total Pay =
 
 ## Engine location
 
-The pure calculation engine should live in `backend/app/services/payroll/` as typed Python with **unit tests for every edge case** (PRD §11: "Payroll for a 20-teacher center calculates correctly for 50 test scenarios"). The frontend module orchestrates UI + Server Actions that call the engine via FastAPI.
+The pure calculation engine lives in this module (`frontend/src/modules/payroll/calculator.ts`) as typed TypeScript with **unit tests for every edge case** (PRD §11: "Payroll for a 20-teacher center calculates correctly for 50 test scenarios"). Server Actions orchestrate the UI; Excel/PDF export is a Next.js Route Handler at `/api/v1/payroll-periods/[id]/export`. No external service — currency math uses `bigint` integers (đồng), never floats.
 
 ## Build checklist
 
-- [ ] Payroll calculation engine (Python service, fully unit-tested)
+- [ ] Payroll calculation engine (TypeScript module, fully unit-tested)
 - [ ] Period selector → table of all teachers with calculated salary
 - [ ] Per-teacher breakdown view (sessions, hours, rate, adjustments)
 - [ ] Manual override on final_amount **with reason** (audit log)

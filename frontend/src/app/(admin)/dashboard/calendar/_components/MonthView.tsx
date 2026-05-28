@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { Pin } from "lucide-react";
 import type { TeacherSessionRow } from "@/app/actions/live-sessions";
 import { detectProvider } from "@/lib/meeting-provider";
 
@@ -141,6 +142,12 @@ export default function MonthView({
                         {start.getMinutes().toString().padStart(2, "0")}
                       </span>
                       <span className="truncate">{s.title}</span>
+                      {s.kind === "recurring" && (
+                        <Pin
+                          className="ml-auto h-2.5 w-2.5 flex-shrink-0 text-indigo-500"
+                          aria-label="Buổi định kỳ"
+                        />
+                      )}
                     </div>
                   );
                 })}

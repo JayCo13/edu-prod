@@ -1,0 +1,25 @@
+# Netlify build config — VLearning (Next.js 16 + Supabase, pnpm monorepo).
+#
+# The Next.js app lives under `frontend/`, so we set `base` there. Netlify's
+# Next.js plugin handles SSR, Server Actions, Route Handlers, and Edge
+# Middleware automatically.
+#
+# Env vars must be configured in Netlify Dashboard → Site settings → Build &
+# deploy → Environment. The list of required vars matches frontend/.env.example.
+
+# Install + build from the repo root so pnpm picks up pnpm-workspace.yaml,
+# but publish the Next.js output that lives under `frontend/`.
+[build]
+  command = "pnpm install --frozen-lockfile && pnpm --filter @vlearning/frontend build"
+  publish = "frontend/.next"
+
+[build.environment]
+  NODE_VERSION = "20"
+  PNPM_VERSION = "10"
+  # Skip Husky / unrelated postinstall scripts in CI to keep build fast.
+  HUSKY = "0"
+
+# Next.js plugin — wires up SSR functions, image optimization, redirects,
+# Edge Middleware, and Server Actions onto Netlify's runtime.
+[[plugins]]
+  package = "@netlify/plugin-nextjs"

@@ -34,9 +34,21 @@ export default function AdjustmentDialog({
 
   if (!open) return null;
 
+  // amountStr is stored already formatted with thousand separators
+  // ("500.000"). Strip the dots/spaces to get the integer for the action.
   const amount = Number(amountStr.replace(/[.,\s]/g, ""));
   const reasonTrimmed = reason.trim();
   const canSave = reasonTrimmed.length > 0 && amount > 0 && !pending;
+
+  function handleAmountChange(raw: string) {
+    const digits = raw.replace(/[^0-9]/g, "");
+    if (!digits) {
+      setAmountStr("");
+      return;
+    }
+    const n = parseInt(digits, 10);
+    setAmountStr(n.toLocaleString("vi-VN"));
+  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -112,20 +124,20 @@ export default function AdjustmentDialog({
             <span className="mb-1.5 block text-sm font-medium text-slate-700">
               Số tiền (VND)
             </span>
-            <input
-              type="text"
-              inputMode="numeric"
-              value={amountStr}
-              onChange={(e) => setAmountStr(e.target.value)}
-              disabled={pending}
-              placeholder="VD: 500000"
-              className={INPUT_CLASS}
-            />
-            {amount > 0 ? (
-              <p className="mt-1 text-xs text-slate-500">
-                = {amount.toLocaleString("vi-VN")}đ
-              </p>
-            ) : null}
+            <div className="relative">
+              <input
+                type="text"
+                inputMode="numeric"
+                value={amountStr}
+                onChange={(e) => handleAmountChange(e.target.value)}
+                disabled={pending}
+                placeholder="VD: 500.000"
+                className={`${INPUT_CLASS} pr-9 font-mono tabular-nums`}
+              />
+              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 font-mono text-xs text-slate-400">
+                đ
+              </span>
+            </div>
           </label>
 
           <label className="block">

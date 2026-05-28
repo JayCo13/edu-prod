@@ -1,6 +1,9 @@
 import { redirect } from "next/navigation";
 import { getCurrentTenantContext } from "@/lib/tenant-context-server";
-import { getTenantTeachers } from "@/app/actions/tenant-teachers";
+import {
+  getTenantTeachers,
+  listTeacherRoles,
+} from "@/app/actions/tenant-teachers";
 import TeachersAdminPanel from "./_components/TeachersAdminPanel";
 
 /**
@@ -17,8 +20,12 @@ export default async function TeachersPage() {
   if (!ctx) redirect("/dashboard");
   if (!ctx.isAdmin) redirect("/dashboard/calendar");
 
-  const result = await getTenantTeachers();
-  const teachers = result.data ?? [];
+  const [teachersResult, rolesResult] = await Promise.all([
+    getTenantTeachers(),
+    listTeacherRoles(),
+  ]);
+  const teachers = teachersResult.data ?? [];
+  const roles = rolesResult.data ?? [];
 
   return (
     <div className="space-y-6">
@@ -31,6 +38,7 @@ export default async function TeachersPage() {
       </div>
       <TeachersAdminPanel
         teachers={teachers}
+        roles={roles}
         currentTeacherId={ctx.currentTeacherId}
       />
     </div>

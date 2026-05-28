@@ -34,6 +34,10 @@ export interface ProfileRow {
 /*  Tenants (mirrors public.tenants)                                           */
 /* -------------------------------------------------------------------------- */
 
+/** Product face — chosen by the owner during onboarding. Affects nav + copy
+ *  only; data isolation is still by tenant_id. Added by migration 0031. */
+export type TenantKind = "CENTER" | "SCHOOL";
+
 export interface TenantRow {
   id: string;
   owner_id: string;
@@ -42,6 +46,10 @@ export interface TenantRow {
   logo_url: string;
   description: string;
   is_public: boolean;
+  kind: TenantKind;
+  /** Random UUID for public TKB sharing via /tkb/[token]/...
+   *  Migration 0033. */
+  public_tkb_token: string;
   created_at: string;
   updated_at: string;
 }
@@ -123,10 +131,17 @@ export interface EnrollmentRow {
 /*  Live Sessions (mirrors public.live_sessions)                               */
 /* -------------------------------------------------------------------------- */
 
+/** Classification tag for a live session. `recurring` = long-term ("Định kỳ"),
+ *  `one_off` = one-time ("Một lần"). Stored on `live_sessions.kind`. v1 is
+ *  display-only — no automatic series generation. */
+export type LiveSessionKind = "recurring" | "one_off";
+
 export interface LiveSessionRow {
   id: string;
   tenant_id: string;
-  course_id: string;
+  /** Optional link to the legacy courses table (deprecated per CLAUDE.md §4).
+   *  NULL means the session stands alone. Migration 0021 dropped NOT NULL. */
+  course_id: string | null;
   teacher_id: string | null;
   title: string;
   description: string;
@@ -135,13 +150,82 @@ export interface LiveSessionRow {
   meeting_url: string;
   meeting_password: string | null;
   is_cancelled: boolean;
+  kind: LiveSessionKind;
+  /** UUID grouping all sessions created from one recurring submit; NULL for one-off. */
+  series_id: string | null;
+  /** Weeks span chosen at series creation, denormalised on every row in the series. NULL for one-off. */
+  recurrence_weeks: number | null;
   created_at: string;
   updated_at: string;
 }
 
 /* -------------------------------------------------------------------------- */
+/*  Notifications (mirrors public.notifications — in-app bell)                 */
+/* -------------------------------------------------------------------------- */
+
+/** Discriminator for the in-app bell. Keep in sync with the CHECK on
+ *  `public.notifications.kind`. */
+export type NotificationKind =
+  | "session_created"
+  | "session_updated"
+  | "session_cancelled";
+
+/** Payload schema by kind. Stored as JSONB; we type the read side so
+ *  consumers don't reach into `any`. Keep these fields small and stable —
+ *  they're a snapshot and won't be re-joined on read. */
+export interface SessionNotificationPayload {
+  title: string;
+  start_time: string;
+  course_title?: string | null;
+  actor_display_name?: string | null;
+  /** When kind=session_created with a recurring fan-out, how many instances. */
+  series_count?: number | null;
+}
+
+export interface NotificationRow {
+  id: string;
+  tenant_id: string;
+  recipient_id: string;
+  actor_id: string | null;
+  actor_teacher_id: string | null;
+  kind: NotificationKind;
+  entity_type: string | null;
+  entity_id: string | null;
+  payload: SessionNotificationPayload;
+  read_at: string | null;
+  created_at: string;
+}
+
+/* -------------------------------------------------------------------------- */
 /*  Tenant Teachers (mirrors public.tenant_teachers — multi-teacher Phase 2)   */
 /* -------------------------------------------------------------------------- */
+
+/** Manual payout methods — bank info each teacher registers so the admin
+ *  knows where to transfer. Added by migration 0026. */
+export interface TeacherPayoutMethodRow {
+  id: string;
+  tenant_id: string;
+  teacher_id: string;
+  bank_name: string;
+  account_number: string;
+  account_holder: string;
+  /** Path inside Supabase Storage bucket `payout-qr`. NULL = no QR uploaded. */
+  qr_image_path: string | null;
+  is_primary: boolean;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+/** How an admin marked a payroll item paid. NULL = not yet paid. */
+export type PayrollItemPaymentMethod = "BANK_TRANSFER" | "CASH";
+
+/** Mirrors modules/payroll/types.ts PaymentStructure. Added by migration 0022. */
+export type TeacherPaymentStructure =
+  | "HOURLY"
+  | "PER_SESSION"
+  | "FIXED_MONTHLY"
+  | "HYBRID";
 
 export interface TenantTeacherRow {
   id: string;
@@ -152,6 +236,29 @@ export interface TenantTeacherRow {
   color: string;
   is_admin: boolean;
   is_active: boolean;
+  /** Payment rate fields — migration 0022. All money is integer đồng (VND). */
+  payment_structure: TeacherPaymentStructure;
+  hourly_rate: number;
+  per_session_rate: number | null;
+  fixed_monthly_amount: number | null;
+  /** Vietnamese tax ID (MST). Shown on Excel payroll export. */
+  tax_id: string | null;
+  /** Position/title at the tenant — FK to teacher_roles (migration 0032).
+   *  NULL = no role assigned. */
+  role_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Tenant-scoped teacher role/position (Hiệu trưởng, Giáo viên, ...).
+ *  Migration 0032. */
+export interface TeacherRoleRow {
+  id: string;
+  tenant_id: string;
+  name: string;
+  short_code: string;
+  color: string;
+  sort_order: number;
   created_at: string;
   updated_at: string;
 }
@@ -225,6 +332,9 @@ export interface ActionResult<T = null> {
   success: boolean;
   data?: T;
   error?: string;
+  /** Optional non-fatal note — the action succeeded but with a caveat
+   *  (e.g., the row was created but the invite email failed). */
+  warning?: string;
 }
 
 // [DEPRECATED per PRD §4.3] - hidden 2026-05-12

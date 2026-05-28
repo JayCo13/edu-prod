@@ -1,68 +1,52 @@
 /**
- * White-label Email Sender (Resend)
- * ==================================
- * Utility for sending branded emails per tenant.
+ * White-label Email Sender (Gmail SMTP via nodemailer)
+ * =====================================================
+ * Utility for sending branded emails per tenant. Each tenant's emails
+ * include their own name and logo for a white-label feel.
  *
- * Each tenant's emails include their own name and logo,
- * creating a white-label experience for students.
+ * ── SETUP STEPS (Gmail / Workspace) ────────────────────────
  *
- * ── INTEGRATION GUIDE ──────────────────────────────────────
- *
- * 1. SIGNUP CONFIRMATION EMAIL:
- *    After successful signUp in `actions/auth.ts`, call:
- *    ```
- *    await sendWhiteLabelEmail({
- *      to: email,
- *      subject: `Xác nhận tài khoản - ${tenantName}`,
- *      tenantName,
- *      tenantLogo: tenant.logo_url,
- *      htmlContent: confirmationTemplate(confirmUrl),
- *    });
- *    ```
- *    NOTE: This replaces Supabase's default confirmation email.
- *    You must disable Supabase's built-in confirmation email
- *    in Dashboard → Auth → Email Templates → set Confirm signup to disabled,
- *    then handle confirmation manually via your own SMTP.
- *
- * 2. PASSWORD RESET EMAIL:
- *    In `requestPasswordReset()`, after calling resetPasswordForEmail():
- *    ```
- *    await sendWhiteLabelEmail({
- *      to: email,
- *      subject: `Khôi phục mật khẩu - ${tenantName}`,
- *      tenantName,
- *      tenantLogo: tenant.logo_url,
- *      htmlContent: passwordResetTemplate(resetUrl),
- *    });
- *    ```
- *    NOTE: Similar to above — disable Supabase's default reset email.
- *
- * 3. WELCOME EMAIL (after onboarding):
- *    In `createTenantOnboarding()`, after tenant creation:
- *    ```
- *    await sendWhiteLabelEmail({
- *      to: teacherEmail,
- *      subject: "Chào mừng đến VLearning!",
- *      tenantName: "VLearning",
- *      tenantLogo: PLATFORM_LOGO_URL,
- *      htmlContent: welcomeTemplate(tenantName, subdomainUrl),
- *    });
- *    ```
- *
- * ── SETUP STEPS ────────────────────────────────────────────
- *
- * 1. Sign up at https://resend.com and get an API key
- * 2. Add to .env.local: RESEND_API_KEY=re_xxxxxxxxxx
- * 3. Verify your sending domain in Resend dashboard
- * 4. Update SENDER_EMAIL below with your verified address
+ * 1. Turn on 2-Step Verification for the sending Google account
+ *    (https://myaccount.google.com/security).
+ * 2. Create an App Password at https://myaccount.google.com/apppasswords
+ *    (pick "Mail" / "Other"). Google gives you a 16-character secret.
+ * 3. Add these to .env.local:
+ *      SMTP_HOST=smtp.gmail.com
+ *      SMTP_PORT=587
+ *      SMTP_USER=your.account@gmail.com
+ *      SMTP_PASSWORD=<16-char app password, NO spaces>
+ *      SMTP_FROM=your.account@gmail.com         # or "Name <addr@gmail.com>"
+ * 4. Free Gmail caps at ~500 recipients/day; Workspace caps at ~2000.
+ *    For higher volume, swap in a dedicated provider (Resend, SES).
  * ──────────────────────────────────────────────────────────
  */
 
+import nodemailer, { type Transporter } from "nodemailer";
+
 // ── Config ─────────────────────────────────────────────────────────────────
 
-const RESEND_API_KEY = process.env.RESEND_API_KEY;
-const SENDER_EMAIL = process.env.RESEND_SENDER_EMAIL || "noreply@ticoclass.com";
-const RESEND_API_URL = "https://api.resend.com/emails";
+const SMTP_HOST = process.env.SMTP_HOST ?? "smtp.gmail.com";
+const SMTP_PORT = Number(process.env.SMTP_PORT ?? 587);
+const SMTP_USER = process.env.SMTP_USER;
+const SMTP_PASSWORD = process.env.SMTP_PASSWORD;
+const SMTP_FROM = process.env.SMTP_FROM ?? SMTP_USER ?? "";
+
+// Cache the transporter — nodemailer reuses the underlying TCP connection
+// across messages, which matters when an admin invites many teachers in
+// a row.
+let transporter: Transporter | null = null;
+function getTransporter(): Transporter | null {
+  if (!SMTP_USER || !SMTP_PASSWORD) return null;
+  if (transporter) return transporter;
+  transporter = nodemailer.createTransport({
+    host: SMTP_HOST,
+    port: SMTP_PORT,
+    // 465 → implicit TLS; 587 → STARTTLS (secure: false + upgrade).
+    secure: SMTP_PORT === 465,
+    auth: { user: SMTP_USER, pass: SMTP_PASSWORD },
+  });
+  return transporter;
+}
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -132,56 +116,44 @@ export async function sendWhiteLabelEmail(
 ): Promise<EmailResult> {
   const { to, subject, tenantName, tenantLogo, htmlContent } = params;
 
-  // Guard: API key required
-  if (!RESEND_API_KEY) {
+  const t = getTransporter();
+  if (!t) {
     console.warn(
-      "[Email] RESEND_API_KEY not configured. Skipping email send.",
+      "[Email] SMTP not configured. Set SMTP_USER and SMTP_PASSWORD (App Password) in .env.local.",
       { to, subject },
     );
     return {
       success: false,
-      error: "Email service not configured (RESEND_API_KEY missing).",
+      error: "Email service not configured (SMTP_USER/SMTP_PASSWORD missing).",
     };
   }
 
   // Build branded HTML
   const html = wrapInBrandedTemplate({ tenantName, tenantLogo, htmlContent });
 
+  // Gmail rewrites the From header to the authenticated SMTP_USER no matter
+  // what we set, so the display name is the only thing under our control.
+  // Including tenantName in the From makes it look like the email is coming
+  // from the center.
+  const from = SMTP_FROM.includes("<")
+    ? SMTP_FROM
+    : `${tenantName} <${SMTP_FROM}>`;
+
   try {
-    const response = await fetch(RESEND_API_URL, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${RESEND_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        from: `${tenantName} <${SENDER_EMAIL}>`,
-        to: [to],
-        subject,
-        html,
-      }),
+    const info = await t.sendMail({
+      from,
+      to,
+      subject,
+      html,
     });
-
-    if (!response.ok) {
-      const errorBody = await response.text();
-      console.error("[Email] Resend API error:", response.status, errorBody);
-      return {
-        success: false,
-        error: `Email send failed (${response.status}).`,
-      };
-    }
-
-    const data = (await response.json()) as { id: string };
-
-    return {
-      success: true,
-      messageId: data.id,
-    };
+    return { success: true, messageId: info.messageId };
   } catch (err) {
-    console.error("[Email] Network error:", err);
+    console.error("[Email] SMTP send failed:", err);
+    const message =
+      err instanceof Error ? err.message : "Unknown SMTP error";
     return {
       success: false,
-      error: "Failed to connect to email service.",
+      error: `Email send failed: ${message}`,
     };
   }
 }
@@ -214,6 +186,133 @@ export function passwordResetEmailContent(resetUrl: string): string {
     </a>
     <p style="color:#94a3b8;font-size:12px;margin-top:24px;">
       Link này sẽ hết hạn sau 24 giờ. Nếu bạn không yêu cầu, hãy bỏ qua email này.
+    </p>
+  `;
+}
+
+/**
+ * Email sent to a brand-new teacher whose account was created by a center
+ * admin. Reveals the temporary password and asks the teacher to change it
+ * within 24 hours — after that, the change-password page is locked.
+ */
+export function teacherCredentialsEmailContent(params: {
+  displayName: string;
+  loginEmail: string;
+  tempPassword: string;
+  changePasswordUrl: string;
+  tenantName: string;
+}): string {
+  const { displayName, loginEmail, tempPassword, changePasswordUrl, tenantName } =
+    params;
+  return `
+    <h2 style="font-size:20px;color:#0f172a;margin:0 0 8px;">Chào ${displayName},</h2>
+    <p style="color:#64748b;font-size:14px;line-height:1.6;margin:0 0 20px;">
+      ${tenantName} vừa tạo tài khoản giáo viên cho bạn. Dưới đây là thông tin
+      đăng nhập tạm thời — hãy đổi mật khẩu trong vòng <strong>24 giờ</strong>.
+    </p>
+    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:16px 20px;margin:0 0 20px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;color:#0f172a;">
+      <div style="margin-bottom:8px;"><span style="color:#94a3b8;">Email:</span> ${loginEmail}</div>
+      <div><span style="color:#94a3b8;">Mật khẩu tạm:</span> <strong>${tempPassword}</strong></div>
+    </div>
+    <a href="${changePasswordUrl}" style="display:inline-block;background:#0f172a;color:#ffffff;font-size:14px;font-weight:600;padding:12px 28px;border-radius:12px;text-decoration:none;">
+      Đăng nhập &amp; đổi mật khẩu
+    </a>
+    <p style="color:#b45309;background:#fef3c7;border:1px solid #fde68a;border-radius:10px;padding:10px 14px;font-size:12px;line-height:1.6;margin-top:20px;">
+      ⚠ Sau 24 giờ, bạn sẽ không thể tự đổi mật khẩu nữa và phải liên hệ
+      quản trị viên trung tâm để được hỗ trợ.
+    </p>
+    <p style="color:#94a3b8;font-size:12px;margin-top:16px;">
+      Nếu bạn không mong đợi email này, hãy bỏ qua nó.
+    </p>
+  `;
+}
+
+/** Email body sent when an admin marks a teacher as paid. Two variants:
+ *  bank transfer (account-number receipt) vs cash (in-person confirmation).
+ *  Vietnamese-first copy — the admin chose the method, the teacher reads. */
+export function payoutPaidEmailContent(params: {
+  displayName: string;
+  tenantName: string;
+  periodLabel: string; // e.g. "Tháng 05/2026"
+  amountFormatted: string; // e.g. "4.200.000đ"
+  method: "BANK_TRANSFER" | "CASH";
+  /** Last 4 digits only, for bank-transfer template — never the full number. */
+  accountTail?: string | null;
+  bankName?: string | null;
+  /** Optional note the admin typed on mark-paid. */
+  adminNote?: string | null;
+  dashboardUrl: string;
+}): string {
+  const {
+    displayName,
+    tenantName,
+    periodLabel,
+    amountFormatted,
+    method,
+    accountTail,
+    bankName,
+    adminNote,
+    dashboardUrl,
+  } = params;
+
+  const bankBlock =
+    method === "BANK_TRANSFER" && accountTail
+      ? `
+        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:14px 18px;margin:0 0 20px;font-size:13px;color:#0f172a;">
+          <div style="color:#64748b;margin-bottom:6px;">Đã chuyển tới tài khoản</div>
+          <div style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;">
+            ${bankName ? `${bankName} · ` : ""}•••• ${accountTail}
+          </div>
+          <div style="color:#94a3b8;font-size:11px;margin-top:8px;">
+            Hãy kiểm tra app ngân hàng. Nếu sau 1 giờ chưa nhận được, vui lòng
+            liên hệ quản trị viên trung tâm.
+          </div>
+        </div>
+      `
+      : "";
+
+  const cashBlock =
+    method === "CASH"
+      ? `
+        <div style="background:#fef3c7;border:1px solid #fde68a;border-radius:12px;padding:14px 18px;margin:0 0 20px;font-size:13px;color:#92400e;">
+          <strong>Hình thức: tiền mặt</strong>
+          <div style="margin-top:6px;">
+            Trung tâm đã trao tiền mặt cho bạn. Nếu bạn chưa nhận, vui lòng
+            phản hồi email này hoặc liên hệ quản trị viên trung tâm.
+          </div>
+        </div>
+      `
+      : "";
+
+  const noteBlock = adminNote?.trim()
+    ? `
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:12px 16px;margin:0 0 20px;font-size:13px;color:#334155;">
+        <div style="color:#94a3b8;font-size:11px;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px;">Ghi chú từ trung tâm</div>
+        ${adminNote.trim()}
+      </div>
+    `
+    : "";
+
+  return `
+    <h2 style="font-size:20px;color:#0f172a;margin:0 0 8px;">Đã thanh toán lương ${periodLabel}</h2>
+    <p style="color:#64748b;font-size:14px;line-height:1.6;margin:0 0 16px;">
+      Chào ${displayName}, ${tenantName} vừa hoàn tất chi lương ${periodLabel} cho bạn.
+    </p>
+    <div style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:12px;padding:18px 20px;margin:0 0 20px;">
+      <div style="color:#047857;font-size:11px;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px;">Thực lĩnh</div>
+      <div style="font-size:26px;font-weight:700;color:#065f46;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;">
+        ${amountFormatted}
+      </div>
+    </div>
+    ${bankBlock}
+    ${cashBlock}
+    ${noteBlock}
+    <a href="${dashboardUrl}" style="display:inline-block;background:#0f172a;color:#ffffff;font-size:14px;font-weight:600;padding:12px 28px;border-radius:12px;text-decoration:none;">
+      Xem chi tiết
+    </a>
+    <p style="color:#94a3b8;font-size:12px;margin-top:16px;">
+      Email này được hệ thống VLearning gửi tự động. Nếu có sai sót, vui lòng
+      phản hồi trực tiếp cho quản trị viên trung tâm.
     </p>
   `;
 }

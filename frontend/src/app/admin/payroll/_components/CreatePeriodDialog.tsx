@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { Plus, X } from "lucide-react";
-import { createEmptyPayrollPeriodAction } from "@/modules/payroll/actions";
+import { createPayrollPeriodFromTenantAction } from "@/modules/payroll/actions";
 
 /**
  * "Create new period" trigger + modal.
@@ -27,7 +27,7 @@ export default function CreatePeriodDialog() {
     e.preventDefault();
     const { start, end } = monthBoundaries(month);
     startTransition(async () => {
-      const r = await createEmptyPayrollPeriodAction({
+      const r = await createPayrollPeriodFromTenantAction({
         period_start: start,
         period_end: end,
         notes,

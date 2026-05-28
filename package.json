@@ -2,19 +2,24 @@
   "name": "vlearning",
   "version": "0.1.0",
   "private": true,
-  "description": "B2B SaaS White-label EdTech Platform — Monorepo",
+  "description": "B2B SaaS for Vietnamese education centers — Next.js + Supabase",
   "scripts": {
+    "dev": "pnpm --filter @vlearning/frontend dev",
     "dev:frontend": "pnpm --filter @vlearning/frontend dev",
-    "dev:backend": "cd backend && .venv/bin/uvicorn app.main:app --reload --port 8000",
-    "dev": "pnpm run dev:frontend",
-    "docker:up": "cd backend && docker compose up --build",
-    "docker:down": "cd backend && docker compose down",
+    "build": "pnpm --filter @vlearning/frontend build",
     "build:frontend": "pnpm --filter @vlearning/frontend build",
+    "lint": "pnpm --filter @vlearning/frontend lint",
     "lint:frontend": "pnpm --filter @vlearning/frontend lint",
-    "typecheck:frontend": "pnpm --filter @vlearning/frontend typecheck"
+    "typecheck": "pnpm --filter @vlearning/frontend typecheck",
+    "typecheck:frontend": "pnpm --filter @vlearning/frontend typecheck",
+    "db:push": "node scripts/db-push.mjs",
+    "db:push:dry": "node scripts/db-push.mjs --dry"
   },
   "engines": {
     "node": ">=20.0.0",
     "pnpm": ">=9.0.0"
+  },
+  "devDependencies": {
+    "postgres": "^3.4.9"
   }
 }

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentTenantContext } from "@/lib/tenant-context-server";
+import { fanOutToTenantAdmins } from "@/app/actions/notifications";
 import type {
   ActionResult,
   LiveSessionRow,
@@ -23,14 +24,24 @@ import type {
 
 const createSessionSchema = z.object({
   title: z.string().min(1, "Tên buổi học không được để trống").max(200),
-  course_id: z.string().uuid("Khóa học không hợp lệ"),
+  /** Optional — legacy courses model is deprecated (CLAUDE.md §4). Sessions
+   *  can stand alone until the classes table lands. */
+  course_id: z
+    .string()
+    .uuid("Khóa học không hợp lệ")
+    .optional()
+    .nullable(),
   start_time: z.string().min(1, "Thời gian bắt đầu không được để trống"),
   duration_minutes: z.number().int().min(5).max(480),
-  meeting_url: z.string().url("URL phòng học không hợp lệ"),
+  meeting_url: z.string().max(2000),
   meeting_password: z.string().max(100).optional().nullable(),
   description: z.string().max(1000).optional(),
   /** Teacher slot. Optional: for solo tenants, falls back to the caller's slot. */
   teacher_id: z.string().uuid("Giáo viên không hợp lệ").optional().nullable(),
+  /** Classification: 'recurring' = long-term, 'one_off' = one-time. */
+  kind: z.enum(["recurring", "one_off"]).default("one_off"),
+  /** Number of weeks to fan out when kind='recurring'. Ignored for one-off. 1–52. */
+  recurrence_weeks: z.number().int().min(1).max(52).optional().nullable(),
 });
 
 function handleError<T = null>(err: unknown): ActionResult<T> {
@@ -38,6 +49,18 @@ function handleError<T = null>(err: unknown): ActionResult<T> {
     err instanceof Error ? err.message : "Đã xảy ra lỗi không xác định.";
   return { success: false, error: message };
 }
+
+// Used by updateLiveSession — all fields optional so the admin can patch
+// a subset. Single-instance update only; does not propagate across series.
+const updateSessionSchema = z.object({
+  id: z.string().uuid(),
+  title: z.string().min(1).max(200).optional(),
+  description: z.string().max(1000).optional(),
+  start_time: z.string().optional(),
+  duration_minutes: z.number().int().min(5).max(480).optional(),
+  teacher_id: z.string().uuid().optional().nullable(),
+  is_cancelled: z.boolean().optional(),
+});
 
 // ── TEACHER: Schedule Live Session ────────────────────────────────────────
 
@@ -50,19 +73,22 @@ export async function scheduleLiveSession(
       return { success: false, error: parsed.error.issues[0].message };
     }
 
-    const { supabase, tenant, currentTeacherId, isAdmin } =
+    const { supabase, tenant, userId, currentTeacherId, isAdmin } =
       await getCurrentTenantContext();
 
-    // Verify the course belongs to this tenant
-    const { data: course } = await supabase
-      .from("courses")
-      .select("id")
-      .eq("id", parsed.data.course_id)
-      .eq("tenant_id", tenant.id)
-      .single();
-
-    if (!course) {
-      return { success: false, error: "Khóa học không thuộc tài khoản của bạn." };
+    // Course is optional. Verify ownership only when one was actually picked.
+    let course: { id: string; title: string } | null = null;
+    if (parsed.data.course_id) {
+      const { data } = await supabase
+        .from("courses")
+        .select("id, title")
+        .eq("id", parsed.data.course_id)
+        .eq("tenant_id", tenant.id)
+        .single();
+      if (!data) {
+        return { success: false, error: "Khóa học không thuộc tài khoản của bạn." };
+      }
+      course = data as { id: string; title: string };
     }
 
     // Resolve teacher_id: caller's pick (if admin), else fall back to caller.
@@ -89,28 +115,76 @@ export async function scheduleLiveSession(
       return { success: false, error: "Giáo viên không thuộc trung tâm này." };
     }
 
-    const { data: session, error } = await supabase
-      .from("live_sessions")
-      .insert({
+    // For 'recurring', fan out N weekly instances sharing a series_id.
+    // For 'one_off', insert a single row (series_id stays NULL).
+    const isRecurring = parsed.data.kind === "recurring";
+    const weeks = isRecurring ? (parsed.data.recurrence_weeks ?? 1) : 1;
+    const seriesId = isRecurring ? crypto.randomUUID() : null;
+    const baseStart = new Date(parsed.data.start_time);
+
+    const rows = Array.from({ length: weeks }, (_, i) => {
+      const start = new Date(baseStart);
+      start.setDate(baseStart.getDate() + i * 7);
+      return {
         tenant_id: tenant.id,
-        course_id: parsed.data.course_id,
+        course_id: parsed.data.course_id ?? null,
         teacher_id: teacherId,
         title: parsed.data.title,
         description: parsed.data.description || "",
-        start_time: parsed.data.start_time,
+        start_time: start.toISOString(),
         duration_minutes: parsed.data.duration_minutes,
         meeting_url: parsed.data.meeting_url,
         meeting_password: parsed.data.meeting_password || null,
-      })
-      .select()
-      .single();
+        kind: parsed.data.kind,
+        series_id: seriesId,
+        recurrence_weeks: isRecurring ? weeks : null,
+      };
+    });
+
+    const { data: inserted, error } = await supabase
+      .from("live_sessions")
+      .insert(rows)
+      .select();
 
     if (error) {
       return { success: false, error: error.message };
     }
 
     revalidatePath("/dashboard/calendar");
-    return { success: true, data: session as LiveSessionRow };
+    // Return the first instance (the original start_time the admin picked).
+    // Callers that need the whole series can re-query by series_id.
+    const first = (inserted ?? [])[0] as LiveSessionRow | undefined;
+    if (!first) {
+      return { success: false, error: "Không tạo được buổi học." };
+    }
+
+    // Notify admins when a non-admin teacher schedules. Admins acting on
+    // their own tenant don't need to ping themselves. Best-effort — never
+    // block the success return on notification fan-out.
+    if (!isAdmin) {
+      const { data: actorSlot } = await supabase
+        .from("tenant_teachers")
+        .select("display_name")
+        .eq("id", teacherId)
+        .maybeSingle();
+      void fanOutToTenantAdmins({
+        tenantId: tenant.id,
+        actorUserId: userId,
+        actorTeacherId: teacherId,
+        kind: "session_created",
+        entityType: "live_session",
+        entityId: first.id,
+        payload: {
+          title: first.title,
+          start_time: first.start_time,
+          course_title: course?.title ?? null,
+          actor_display_name: actorSlot?.display_name ?? null,
+          series_count: isRecurring ? weeks : null,
+        },
+      }).catch(() => {});
+    }
+
+    return { success: true, data: first };
   } catch (err) {
     return handleError<LiveSessionRow>(err);
   }
@@ -119,9 +193,13 @@ export async function scheduleLiveSession(
 // ── TEACHER: Get All Sessions ─────────────────────────────────────────────
 
 export type TeacherSessionRow = LiveSessionRow & {
-  course: Pick<CourseRow, "title" | "slug"> & {
-    enrollments_count: number | null;
-  };
+  /** NULL when the session isn't linked to a course (course_id IS NULL).
+   *  Sessions decoupled from the deprecated courses model per migration 0021. */
+  course:
+    | (Pick<CourseRow, "title" | "slug"> & {
+        enrollments_count: number | null;
+      })
+    | null;
   teacher: Pick<
     TenantTeacherRow,
     "id" | "display_name" | "color" | "is_admin"
@@ -155,6 +233,115 @@ export async function getTeacherLiveSessions(): Promise<
 }
 
 // ── TEACHER: Delete Session ───────────────────────────────────────────────
+
+// ── ADMIN: Update Single Live Session ─────────────────────────────────────
+//
+// Single-instance update only. For sessions in a recurring series the change
+// affects ONLY the targeted row — series-aware edit ("apply to all upcoming")
+// is deferred to the Classes module (PRD §6).
+
+export async function updateLiveSession(
+  data: z.infer<typeof updateSessionSchema>,
+): Promise<ActionResult<LiveSessionRow>> {
+  try {
+    const parsed = updateSessionSchema.safeParse(data);
+    if (!parsed.success) {
+      return { success: false, error: parsed.error.issues[0].message };
+    }
+
+    const { supabase, tenant, userId, currentTeacherId, isAdmin } =
+      await getCurrentTenantContext();
+
+    // Non-admins can only re-assign to themselves (or leave unchanged).
+    // Final enforcement is RLS (own-teacher-write policy); this is a clearer
+    // error message before we hit the database.
+    if (
+      !isAdmin &&
+      parsed.data.teacher_id !== undefined &&
+      parsed.data.teacher_id !== currentTeacherId
+    ) {
+      return {
+        success: false,
+        error: "Bạn chỉ có thể giữ buổi học của mình.",
+      };
+    }
+
+    // If teacher_id is being changed, verify the new slot belongs to this tenant.
+    if (parsed.data.teacher_id) {
+      const { data: teacherRow } = await supabase
+        .from("tenant_teachers")
+        .select("id")
+        .eq("id", parsed.data.teacher_id)
+        .eq("tenant_id", tenant.id)
+        .single();
+      if (!teacherRow) {
+        return { success: false, error: "Giáo viên không thuộc trung tâm này." };
+      }
+    }
+
+    const patch: Record<string, unknown> = {};
+    if (parsed.data.title !== undefined) patch.title = parsed.data.title;
+    if (parsed.data.description !== undefined)
+      patch.description = parsed.data.description;
+    if (parsed.data.start_time !== undefined)
+      patch.start_time = parsed.data.start_time;
+    if (parsed.data.duration_minutes !== undefined)
+      patch.duration_minutes = parsed.data.duration_minutes;
+    if (parsed.data.teacher_id !== undefined)
+      patch.teacher_id = parsed.data.teacher_id;
+    if (parsed.data.is_cancelled !== undefined)
+      patch.is_cancelled = parsed.data.is_cancelled;
+    patch.updated_at = new Date().toISOString();
+
+    const { data: updated, error } = await supabase
+      .from("live_sessions")
+      .update(patch)
+      .eq("id", parsed.data.id)
+      .eq("tenant_id", tenant.id)
+      .select(
+        `*, course:courses!live_sessions_course_id_fkey (title)`,
+      )
+      .single();
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    revalidatePath("/dashboard/calendar");
+
+    // Notify admins when a non-admin teacher edits a session. Cancel uses a
+    // separate kind so the bell copy can read "Đã huỷ" instead of "Đã sửa".
+    if (!isAdmin) {
+      const row = updated as LiveSessionRow & {
+        course?: { title?: string | null } | null;
+      };
+      const isCancelEvent = parsed.data.is_cancelled === true;
+      const { data: actorSlot } = await supabase
+        .from("tenant_teachers")
+        .select("display_name")
+        .eq("id", currentTeacherId ?? "")
+        .maybeSingle();
+      void fanOutToTenantAdmins({
+        tenantId: tenant.id,
+        actorUserId: userId,
+        actorTeacherId: currentTeacherId,
+        kind: isCancelEvent ? "session_cancelled" : "session_updated",
+        entityType: "live_session",
+        entityId: row.id,
+        payload: {
+          title: row.title,
+          start_time: row.start_time,
+          course_title: row.course?.title ?? null,
+          actor_display_name: actorSlot?.display_name ?? null,
+        },
+      }).catch(() => {});
+    }
+
+    return { success: true, data: updated as LiveSessionRow };
+  } catch (err) {
+    return handleError<LiveSessionRow>(err);
+  }
+}
 
 export async function deleteLiveSession(
   sessionId: string,

@@ -1,46 +1,64 @@
 "use client";
 
 import { useState } from "react";
-import { Upload, Check, User, Landmark } from "lucide-react";
+import { TrendingUp } from "lucide-react";
+
 import { ACCENT } from "./_accent";
 
-const STEPS = [
+/**
+ * HowItWorks — 3-step explainer with interactive tab + preview pane.
+ * Ported from the design bundle.
+ *
+ * Left column = clickable step list. Right column = matching preview
+ * (Excel import → weekly grid with conflict warning → monthly payroll
+ * summary with pay status).
+ */
+
+type StepShape = {
+  n: string;
+  title: string;
+  desc: string;
+  stats: [string, string][];
+};
+
+const STEPS: StepShape[] = [
   {
     n: "01",
-    icon: User,
-    title: "Tạo tài khoản & gắn tên miền",
-    desc: "Đăng ký 30 giây, chọn template trang chủ, gắn tên miền của riêng bạn. SSL được cấp tự động.",
+    title: "Nhập danh sách giáo viên",
+    desc:
+      "Import từ file Excel cũ của trung tâm — hoặc thêm thủ công. Set đơn giá lương riêng cho từng người (theo giờ, theo buổi, hay lương cứng).",
     stats: [
-      ["Setup", "5 phút"],
-      ["SSL", "Tự động"],
-      ["Templates", "12+"],
-    ] as Array<[string, string]>,
+      ["Import", "Excel mẫu"],
+      ["Thời gian", "~1 giờ"],
+      ["Lưu trữ", "Supabase EU"],
+    ],
   },
   {
     n: "02",
-    icon: Upload,
-    title: "Upload bài giảng",
-    desc: "Kéo-thả video bất kỳ định dạng — hệ thống tự encode HLS, sinh thumbnail, mã hóa bảo mật.",
+    title: "Lên lịch dạy + điểm danh",
+    desc:
+      "Đặt lịch theo tuần trên grid Ngày × Tiết. Giáo viên điểm danh từ /dashboard trên điện thoại — không cần app riêng.",
     stats: [
-      ["Format", "Mọi loại"],
-      ["Encoding", "HLS"],
-      ["DRM", "Sẵn sàng"],
-    ] as Array<[string, string]>,
+      ["Detect", "Trùng giờ tức thì"],
+      ["Mobile", "Web app"],
+      ["BYOM", "Zoom / Meet / Teams"],
+    ],
   },
   {
     n: "03",
-    icon: Landmark,
-    title: "Mở bán & nhận tiền",
-    desc: "Đặt giá theo khóa hoặc theo gói tháng. Học viên thanh toán — tiền về tài khoản bạn trực tiếp.",
+    title: "Cuối tháng — chốt lương",
+    desc:
+      'Nhấn "Chốt lương" → hệ thống tổng hợp toàn bộ buổi đã dạy + thưởng / khấu trừ → xuất Excel BẢNG LƯƠNG đúng định dạng đối chiếu ngân hàng.',
     stats: [
-      ["Phí", "Chỉ 5%"],
-      ["Thanh toán", "T+2"],
-      ["Tiền tệ", "USD/VND"],
-    ] as Array<[string, string]>,
+      ["Format", "Excel chuẩn"],
+      ["Ngân hàng", "Đối chiếu OK"],
+      ["Thanh toán", "Đánh dấu T+0"],
+    ],
   },
 ];
 
 export default function HowItWorks() {
+  const A = ACCENT;
   const [active, setActive] = useState(0);
 
   return (
@@ -52,17 +70,16 @@ export default function HowItWorks() {
         <div className="mx-auto max-w-2xl text-center">
           <p
             className="font-mono text-[13px] font-bold uppercase tracking-[0.18em]"
-            style={{ color: ACCENT.solid }}
+            style={{ color: A.solid }}
           >
-            · 03 — Cách hoạt động
+            · 03 — CÁCH HOẠT ĐỘNG
           </p>
-          <h2 className="font-display mt-3 text-[34px] font-bold leading-[1.1] tracking-tight text-slate-900 sm:text-[44px]">
-            Ba bước đến lớp học của bạn.
+          <h2 className="mt-3 font-display text-[34px] font-bold leading-[1.1] tracking-tight text-slate-900 sm:text-[44px]">
+            Ba bước, từ Excel cũ đến VLearning.
           </h2>
         </div>
 
         <div className="mt-16 grid grid-cols-1 items-center gap-12 lg:grid-cols-[minmax(0,_5fr)_minmax(0,_6fr)] lg:gap-16">
-          {/* Steps */}
           <div className="space-y-3">
             {STEPS.map((s, i) => {
               const on = i === active;
@@ -79,10 +96,12 @@ export default function HowItWorks() {
                 >
                   <div className="flex items-start gap-4">
                     <div
-                      className={`font-display grid h-11 w-11 shrink-0 place-items-center rounded-xl text-[14px] font-bold transition-colors ${
-                        on ? "text-white" : "bg-white text-slate-700 ring-1 ring-slate-200"
+                      className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl font-display text-[14px] font-bold transition-colors ${
+                        on
+                          ? "text-white"
+                          : "bg-white text-slate-700 ring-1 ring-slate-200"
                       }`}
-                      style={on ? { background: ACCENT.solid } : undefined}
+                      style={on ? { background: A.solid } : undefined}
                     >
                       {s.n}
                     </div>
@@ -113,12 +132,11 @@ export default function HowItWorks() {
             })}
           </div>
 
-          {/* Visual that swaps */}
           <div className="relative">
             <div className="rounded-2xl bg-white p-7 shadow-xl shadow-slate-200/60 ring-1 ring-slate-100 sm:p-8">
-              {active === 0 && <Step1Visual />}
-              {active === 1 && <Step2Visual />}
-              {active === 2 && <Step3Visual />}
+              {active === 0 && <Step1 />}
+              {active === 1 && <Step2 />}
+              {active === 2 && <Step3 />}
             </div>
           </div>
         </div>
@@ -127,326 +145,328 @@ export default function HowItWorks() {
   );
 }
 
-function Step1Visual() {
+// ── Step 1: Import giáo viên ───────────────────────────────────────────
+
+function Step1() {
   return (
     <div>
       <p className="font-mono text-[10.5px] font-semibold uppercase tracking-wide text-slate-400">
-        Cài đặt thương hiệu
+        Import giáo viên
       </p>
-      <div className="mt-4 space-y-3">
-        <div>
-          <label className="font-mono text-[10px] uppercase tracking-wide text-slate-400">
-            Tên miền
-          </label>
-          <div className="mt-1 flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5">
-            <span className="font-mono text-[12.5px] font-medium text-slate-900">
-              thaytoan.vn
-            </span>
-            <span className="ml-auto inline-flex items-center gap-1 rounded-md bg-emerald-50 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-emerald-700">
-              <span className="h-1 w-1 rounded-full bg-emerald-500" /> SSL active
-            </span>
-          </div>
+      <div className="mt-4 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 text-center">
+        <div className="mx-auto inline-flex h-10 w-10 items-center justify-center rounded-lg bg-white text-emerald-600 ring-1 ring-slate-200">
+          <span
+            className="grid h-5 w-5 place-items-center rounded text-[9px] font-bold text-white"
+            style={{ background: "#107c41" }}
+          >
+            X
+          </span>
         </div>
-        <div>
-          <label className="font-mono text-[10px] uppercase tracking-wide text-slate-400">
-            Logo & màu thương hiệu
-          </label>
-          <div className="mt-1 flex items-center gap-2 rounded-lg border border-slate-200 bg-white p-3">
+        <p className="mt-2 font-mono text-[10.5px] text-slate-600">
+          Kéo file{" "}
+          <span className="font-semibold text-slate-900">danh-sach-gv.xlsx</span>{" "}
+          vào đây
+        </p>
+        <p className="mt-1 font-mono text-[9.5px] text-slate-400">
+          hoặc <span className="underline">tải file Excel mẫu</span>
+        </p>
+      </div>
+      <p className="mt-5 font-mono text-[10px] uppercase tracking-wide text-slate-400">
+        Sau khi import — 18 giáo viên
+      </p>
+      <div className="mt-2 space-y-1.5">
+        {[
+          {
+            n: "Cô Linh Lê",
+            sub: "linh.le@…",
+            r: "Teacher",
+            price: "250.000đ / giờ",
+          },
+          {
+            n: "Thầy Hùng Nguyễn",
+            sub: "hung.ng@…",
+            r: "Admin",
+            price: "300.000đ / giờ",
+          },
+          {
+            n: "Cô Mai Trần",
+            sub: "mai.tt@…",
+            r: "Teacher",
+            price: "220.000đ / giờ",
+          },
+          {
+            n: "Thầy Đức Phan",
+            sub: "duc.pn@…",
+            r: "Teacher",
+            price: "5.000.000đ / tháng",
+          },
+        ].map((t, i) => (
+          <div
+            key={i}
+            className="flex items-center gap-2.5 rounded-lg border border-slate-100 bg-white px-2.5 py-2"
+          >
             <span
-              className="grid h-10 w-10 place-items-center rounded-lg text-[12px] font-bold text-white"
-              style={{ background: ACCENT.solid }}
+              className="grid h-7 w-7 place-items-center rounded-lg text-[10px] font-bold text-white"
+              style={{
+                background: ["#4f46e5", "#10b981", "#f59e0b", "#7c3aed"][i],
+              }}
             >
-              T
+              {t.n.split(" ").slice(-1)[0][0]}
             </span>
-            <div className="flex gap-1.5">
-              {["#4f46e5", "#10b981", "#f59e0b", "#e11d48", "#0ea5e9"].map((c) => (
-                <span
-                  key={c}
-                  className={`h-6 w-6 rounded-full ring-2 ${
-                    c === ACCENT.solid
-                      ? "ring-slate-900 ring-offset-1"
-                      : "ring-transparent"
-                  }`}
-                  style={{ background: c }}
-                />
-              ))}
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[11.5px] font-semibold text-slate-900">
+                {t.n}
+              </p>
+              <p className="truncate font-mono text-[9.5px] text-slate-400">
+                {t.sub}
+              </p>
             </div>
+            <span
+              className={`rounded px-1.5 py-0.5 font-mono text-[9px] font-semibold ${
+                t.r === "Admin"
+                  ? "bg-violet-50 text-violet-700"
+                  : "bg-slate-100 text-slate-600"
+              }`}
+            >
+              {t.r}
+            </span>
+            <span className="font-mono text-[10px] tabular-nums text-slate-700">
+              {t.price}
+            </span>
           </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Step 2: Weekly grid + conflict ─────────────────────────────────────
+
+function Step2() {
+  type Cell = { c: string; l: string } | null;
+  const rows: { h: string; row: Cell[] }[] = [
+    {
+      h: "08:00",
+      row: [
+        { c: "#4f46e5", l: "IELTS · L" },
+        null,
+        { c: "#10b981", l: "GT · H" },
+        null,
+        { c: "#4f46e5", l: "IELTS · L" },
+        null,
+        null,
+      ],
+    },
+    {
+      h: "10:00",
+      row: [
+        null,
+        { c: "#f59e0b", l: "THPT · M" },
+        null,
+        { c: "#10b981", l: "GT · H" },
+        null,
+        { c: "#f59e0b", l: "THPT · M" },
+        null,
+      ],
+    },
+    {
+      h: "15:00",
+      row: [
+        { c: "#7c3aed", l: "Hoa" },
+        null,
+        { c: "#4f46e5", l: "L" },
+        null,
+        { c: "#7c3aed", l: "Hoa" },
+        { c: "#4f46e5", l: "L" },
+        null,
+      ],
+    },
+    {
+      h: "19:00",
+      row: [
+        null,
+        { c: "#4f46e5", l: "IELTS · L" },
+        { c: "#e11d48", l: "⚠ Trùng" },
+        null,
+        null,
+        { c: "#10b981", l: "GT · H" },
+        { c: "#7c3aed", l: "Q&A" },
+      ],
+    },
+  ];
+  return (
+    <div>
+      <p className="font-mono text-[10.5px] font-semibold uppercase tracking-wide text-slate-400">
+        Lịch tuần · 12 — 18 / 05
+      </p>
+      <div className="mt-4 overflow-hidden rounded-xl border border-slate-200">
+        <div className="grid grid-cols-8 bg-slate-50 font-mono text-[9.5px] font-semibold uppercase tracking-wide text-slate-500">
+          {["Giờ", "T2", "T3", "T4", "T5", "T6", "T7", "CN"].map((d, i) => (
+            <div
+              key={i}
+              className={`px-1.5 py-1.5 text-center ${
+                i > 0 ? "border-l border-slate-200" : ""
+              }`}
+            >
+              {d}
+            </div>
+          ))}
         </div>
-        <div>
-          <label className="font-mono text-[10px] uppercase tracking-wide text-slate-400">
-            Template trang chủ
-          </label>
-          <div className="mt-1 grid grid-cols-3 gap-2">
-            {[0, 1, 2].map((i) => (
-              <div
-                key={i}
-                className={`aspect-[4/3] rounded-lg border-2 ${
-                  i === 0 ? "" : "border-slate-100"
-                } bg-slate-50 p-1.5`}
-                style={i === 0 ? { borderColor: ACCENT.solid } : undefined}
-              >
-                <div className="h-1.5 w-3/4 rounded-full bg-slate-200" />
-                <div className="mt-1 h-6 rounded bg-slate-200/70" />
-                <div className="mt-1 grid grid-cols-2 gap-1">
-                  <div className="h-3 rounded bg-slate-200/70" />
-                  <div className="h-3 rounded bg-slate-200/70" />
-                </div>
+        {rows.map((r, i) => (
+          <div key={i} className="grid grid-cols-8 border-t border-slate-100">
+            <div className="px-1.5 py-2 text-center font-mono text-[9.5px] tabular-nums text-slate-500">
+              {r.h}
+            </div>
+            {r.row.map((cell, j) => (
+              <div key={j} className="border-l border-slate-100 p-0.5">
+                {cell ? (
+                  <span
+                    className="block truncate rounded px-1 py-0.5 text-[8.5px] font-semibold text-white"
+                    style={{ background: cell.c }}
+                  >
+                    {cell.l}
+                  </span>
+                ) : null}
               </div>
             ))}
           </div>
-        </div>
+        ))}
+      </div>
+      <div className="mt-3 flex flex-wrap gap-2 font-mono text-[10px] text-slate-500">
+        {(
+          [
+            ["#4f46e5", "Cô Linh"],
+            ["#10b981", "Thầy Hùng"],
+            ["#f59e0b", "Cô Mai"],
+            ["#7c3aed", "Cô Hoa"],
+          ] as const
+        ).map(([c, n]) => (
+          <span key={n} className="inline-flex items-center gap-1">
+            <span className="h-2 w-2 rounded" style={{ background: c }} />
+            {n}
+          </span>
+        ))}
+      </div>
+      <div className="mt-3 inline-flex items-center gap-1.5 rounded-md bg-rose-50 px-2 py-1 font-mono text-[10px] font-semibold text-rose-700">
+        ⚠ Phát hiện 1 trùng giờ — Cô Linh & Thầy Hùng cùng phòng B2 19:00 T4
       </div>
     </div>
   );
 }
 
-function Step2Visual() {
-  const files = [
-    { t: "Bài 01 — Giới thiệu môn học", s: "1.2GB · 18:42", p: 100 },
-    { t: "Bài 02 — Hàm số bậc 2", s: "2.4GB · 32:15", p: 100 },
-    { t: "Bài 03 — Phương trình", s: "1.8GB · 24:08", p: 78 },
-    { t: "Bài 04 — Bất phương trình", s: "—", p: 0 },
-  ];
-  return (
-    <div>
-      <p className="font-mono text-[10.5px] font-semibold uppercase tracking-wide text-slate-400">
-        Upload nội dung
-      </p>
-      <div className="mt-4 space-y-2">
-        {files.map((f) => {
-          const inProgress = f.p > 0 && f.p < 100;
-          return (
-            <div
-              key={f.t}
-              className="rounded-xl border border-slate-100 bg-white p-3"
-            >
-              <div className="flex items-center gap-3">
-                <span
-                  className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg ${
-                    f.p === 100
-                      ? "bg-emerald-50 text-emerald-600"
-                      : f.p === 0
-                        ? "bg-slate-50 text-slate-300"
-                        : ""
-                  }`}
-                  style={
-                    inProgress
-                      ? { background: ACCENT.tint, color: ACCENT.solid }
-                      : undefined
-                  }
-                >
-                  {f.p === 100 ? (
-                    <Check className="h-4 w-4" strokeWidth={2.5} />
-                  ) : (
-                    <Upload className="h-4 w-4" strokeWidth={2} />
-                  )}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-[12px] font-semibold text-slate-900">
-                    {f.t}
-                  </p>
-                  <p className="truncate text-[10.5px] text-slate-500">{f.s}</p>
-                </div>
-                <span
-                  className="font-mono text-[10.5px] font-semibold tabular-nums"
-                  style={{
-                    color:
-                      f.p === 100
-                        ? "#059669"
-                        : f.p > 0
-                          ? ACCENT.solid
-                          : "#94a3b8",
-                  }}
-                >
-                  {f.p > 0 ? `${f.p}%` : "queued"}
-                </span>
-              </div>
-              {inProgress && (
-                <div className="mt-2 h-1 overflow-hidden rounded-full bg-slate-100">
-                  <div
-                    className="h-full rounded-full transition-all"
-                    style={{ width: `${f.p}%`, background: ACCENT.solid }}
-                  />
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
+// ── Step 3: Monthly payroll summary ────────────────────────────────────
 
-function Step3Visual() {
-  const courses = [
-    { t: "Khóa Toán 12 — Luyện thi THPT", v: "₫14,200,000", n: 248, w: 100, c: ACCENT.solid },
-    { t: "Khóa Lý 11 — Cơ bản", v: "₫6,840,000", n: 112, w: 48, c: "#10b981" },
-    { t: "Lớp Live · Hình học không gian", v: "₫3,800,000", n: 47, w: 27, c: "#f59e0b" },
-  ];
-
+function Step3() {
   return (
     <div>
       <div className="flex items-start justify-between">
         <div>
           <p className="font-mono text-[10.5px] font-semibold uppercase tracking-wide text-slate-400">
-            Doanh thu · 7 ngày qua
+            Bảng lương tháng 04 / 2026
           </p>
           <div className="mt-1 flex items-baseline gap-3">
             <p className="font-display text-[34px] font-bold tracking-tight tabular-nums text-slate-900">
-              ₫24,840,000
+              184.250.000
+              <span className="font-mono text-[14px] font-medium text-slate-400">
+                đ
+              </span>
             </p>
             <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-1.5 py-0.5 text-[11px] font-semibold text-emerald-700">
-              <svg
-                className="h-3 w-3"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <polyline points="22 7 13.5 15.5 8.5 10.5 2 17" />
-                <polyline points="16 7 22 7 22 13" />
-              </svg>{" "}
-              +32%
+              <TrendingUp className="h-3 w-3" strokeWidth={2.5} />
+              +12%
             </span>
           </div>
           <p className="mt-1 font-mono text-[10.5px] text-slate-400">
-            vs. tuần trước · ₫18,820,000
+            18 giáo viên · vs T3: 164.510.000đ
           </p>
         </div>
-        <div className="hidden items-center gap-1.5 sm:flex">
-          <span className="rounded-md bg-slate-100 px-2 py-1 font-mono text-[10px] font-medium text-slate-600">
-            7N
-          </span>
+        <span
+          className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-[11px] font-semibold text-white"
+          style={{ background: "#059669" }}
+        >
           <span
-            className="rounded-md px-2 py-1 font-mono text-[10px] font-medium text-white"
-            style={{ background: ACCENT.solid }}
+            className="grid h-3.5 w-3.5 place-items-center rounded text-[8px] font-bold text-white"
+            style={{ background: "rgba(255,255,255,0.25)" }}
           >
-            30N
+            X
           </span>
-          <span className="rounded-md bg-slate-100 px-2 py-1 font-mono text-[10px] font-medium text-slate-600">
-            12T
-          </span>
-        </div>
+          Xuất Excel
+        </span>
       </div>
 
-      <div className="mt-5">
-        <svg viewBox="0 0 320 110" className="h-28 w-full">
-          <defs>
-            <linearGradient id="step3-area" x1="0" x2="0" y1="0" y2="1">
-              <stop offset="0%" stopColor={ACCENT.solid} stopOpacity="0.3" />
-              <stop offset="100%" stopColor={ACCENT.solid} stopOpacity="0" />
-            </linearGradient>
-          </defs>
-          {[0, 25, 50, 75, 100].map((y) => (
-            <line
-              key={y}
-              x1="0"
-              x2="320"
-              y1={y}
-              y2={y}
-              stroke="rgb(15 23 42 / 0.05)"
-              strokeDasharray="2 4"
-            />
-          ))}
-          <path
-            d="M0 80 L46 70 L92 75 L138 50 L184 55 L228 35 L274 40 L320 18 L320 100 L0 100 Z"
-            fill="url(#step3-area)"
-          />
-          <path
-            d="M0 80 L46 70 L92 75 L138 50 L184 55 L228 35 L274 40 L320 18"
-            fill="none"
-            stroke={ACCENT.solid}
-            strokeWidth="2.5"
-            strokeLinecap="round"
-          />
-          {[
-            [0, 80],
-            [46, 70],
-            [92, 75],
-            [138, 50],
-            [184, 55],
-            [228, 35],
-            [274, 40],
-            [320, 18],
-          ].map(([x, y], i) => (
-            <circle
-              key={i}
-              cx={x}
-              cy={y}
-              r={i === 7 ? 3.5 : 2}
-              fill="white"
-              stroke={ACCENT.solid}
-              strokeWidth={i === 7 ? 2.5 : 1.5}
-            />
-          ))}
-        </svg>
-        <div className="mt-1 flex justify-between font-mono text-[9.5px] text-slate-400">
-          {["T2", "T3", "T4", "T5", "T6", "T7", "CN", "Hôm nay"].map((d) => (
-            <span key={d}>{d}</span>
-          ))}
-        </div>
-      </div>
-
-      <div className="mt-5 grid grid-cols-3 gap-2">
-        {(
-          [
-            ["Đơn hàng", "407", "+18%"],
-            ["AOV", "₫61k", "+12%"],
-            ["Hoàn tiền", "0.4%", "−0.2%"],
-          ] as Array<[string, string, string]>
-        ).map(([l, v, d]) => (
-          <div key={l} className="rounded-lg bg-slate-50 p-2.5">
-            <p className="text-[10px] font-medium text-slate-500">{l}</p>
-            <p className="font-display mt-0.5 text-[15px] font-bold tabular-nums text-slate-900">
-              {v}
-            </p>
-            <p className="font-mono text-[9.5px] font-semibold text-emerald-600">
-              {d}
-            </p>
+      <div className="mt-5 space-y-1.5">
+        {[
+          {
+            n: "Cô Linh L.",
+            m: "Theo giờ · 84h",
+            v: "22.000.000đ",
+            paid: true,
+          },
+          {
+            n: "Thầy Hùng N.",
+            m: "Theo giờ · 62h + admin",
+            v: "18.600.000đ",
+            paid: true,
+          },
+          {
+            n: "Cô Mai T.",
+            m: "Theo giờ · 48h",
+            v: "11.060.000đ",
+            paid: true,
+          },
+          { n: "Thầy Đức P.", m: "Lương cứng", v: "5.000.000đ", paid: false },
+          {
+            n: "Cô Hoa V.",
+            m: "Theo giờ · 72h",
+            v: "14.400.000đ",
+            paid: false,
+          },
+        ].map((r, i) => (
+          <div
+            key={i}
+            className="flex items-center gap-2.5 rounded-lg border border-slate-100 bg-white px-2.5 py-2"
+          >
+            <span
+              className="grid h-7 w-7 place-items-center rounded-lg text-[10px] font-bold text-white"
+              style={{
+                background: [
+                  "#4f46e5",
+                  "#10b981",
+                  "#f59e0b",
+                  "#7c3aed",
+                  "#e11d48",
+                ][i],
+              }}
+            >
+              {r.n.split(" ").slice(-1)[0][0]}
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[11.5px] font-semibold text-slate-900">
+                {r.n}
+              </p>
+              <p className="truncate font-mono text-[10px] text-slate-400">
+                {r.m}
+              </p>
+            </div>
+            <span className="font-mono text-[11.5px] font-semibold tabular-nums text-slate-900">
+              {r.v}
+            </span>
+            <span
+              className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 font-mono text-[9px] font-semibold ${
+                r.paid
+                  ? "bg-emerald-50 text-emerald-700"
+                  : "bg-amber-50 text-amber-700"
+              }`}
+            >
+              <span
+                className={`h-1 w-1 rounded-full ${
+                  r.paid ? "bg-emerald-500" : "bg-amber-500"
+                }`}
+              />
+              {r.paid ? "Đã trả" : "Chờ trả"}
+            </span>
           </div>
         ))}
-      </div>
-
-      <div className="mt-5">
-        <div className="flex items-center justify-between">
-          <p className="font-mono text-[10.5px] font-semibold uppercase tracking-wide text-slate-400">
-            Theo khóa học
-          </p>
-          <span className="font-mono text-[10px] font-medium text-slate-500">
-            Xem tất cả →
-          </span>
-        </div>
-        <div className="mt-2 space-y-1.5">
-          {courses.map((c) => (
-            <div
-              key={c.t}
-              className="rounded-lg border border-slate-100 bg-white p-2.5"
-            >
-              <div className="flex items-center justify-between">
-                <p className="truncate text-[11.5px] font-semibold text-slate-900">
-                  {c.t}
-                </p>
-                <p className="font-display text-[12.5px] font-bold tabular-nums text-slate-900">
-                  {c.v}
-                </p>
-              </div>
-              <div className="mt-1.5 flex items-center gap-2">
-                <div className="h-1 flex-1 overflow-hidden rounded-full bg-slate-100">
-                  <div
-                    className="h-full rounded-full"
-                    style={{ width: `${c.w}%`, background: c.c }}
-                  />
-                </div>
-                <span className="shrink-0 font-mono text-[9.5px] tabular-nums text-slate-400">
-                  {c.n} đơn
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
       </div>
     </div>
   );

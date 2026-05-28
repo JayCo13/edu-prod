@@ -12,6 +12,7 @@ import {
   Download,
   ExternalLink,
   Loader2,
+  Pin,
   Trash2,
   Users,
   Video,
@@ -19,6 +20,7 @@ import {
 
 import type { TeacherSessionRow } from "@/app/actions/live-sessions";
 import { deleteLiveSession } from "@/app/actions/live-sessions";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import { detectProvider } from "@/lib/meeting-provider";
 import { ProviderBadge } from "@/components/calendar/ProviderBadge";
 import {
@@ -128,6 +130,15 @@ function SessionRow({ session, state, onCopy, onDelete, isDeleting }: SessionRow
             {session.title}
           </p>
           {stateBadge}
+          {session.kind === "recurring" && (
+            <span
+              className="inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-[10.5px] font-medium text-indigo-700"
+              title="Buổi học định kỳ — lặp lại lâu dài"
+            >
+              <Pin className="h-3 w-3" />
+              Định kỳ
+            </span>
+          )}
           <ProviderBadge provider={provider} size="sm" />
         </div>
         <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
@@ -249,6 +260,7 @@ function GroupHeader({ label, count }: GroupHeaderProps) {
 export default function SessionList({ sessions }: SessionListProps) {
   const [isDeleting, startDeleteTransition] = useTransition();
   const router = useRouter();
+  const confirm = useConfirm();
 
   function handleCopy(url: string) {
     navigator.clipboard
@@ -257,9 +269,15 @@ export default function SessionList({ sessions }: SessionListProps) {
       .catch(() => toast.error("Không thể sao chép. Vui lòng thử lại."));
   }
 
-  function handleDelete(sessionId: string, title: string) {
-    if (!confirm(`Xóa buổi học "${title}"?`)) return;
-
+  async function handleDelete(sessionId: string, title: string) {
+    const ok = await confirm({
+      title: `Xoá buổi học "${title}"?`,
+      variant: "danger",
+      confirmLabel: "Xoá buổi học",
+      description:
+        "Buổi học này sẽ bị xoá khỏi lịch. Hành động này không thể hoàn tác.",
+    });
+    if (!ok) return;
     startDeleteTransition(async () => {
       const result = await deleteLiveSession(sessionId);
       if (result.success) {

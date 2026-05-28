@@ -37,7 +37,10 @@ export default async function CalendarPage() {
           </p>
         </div>
         <div className="flex flex-shrink-0 items-center gap-2">
-          <CalendarExportButton sessions={sessions} />
+          <CalendarExportButton
+            sessions={sessions}
+            centerName={ctx?.tenant.name ?? null}
+          />
           <CreateSessionModal
             courses={courses}
             teachers={teachers}
@@ -52,6 +55,7 @@ export default async function CalendarPage() {
         sessions={sessions}
         teachers={teachers}
         currentTeacherId={currentTeacherId}
+        isAdmin={isAdmin}
       />
     </div>
   );

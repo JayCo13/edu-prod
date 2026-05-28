@@ -4,6 +4,7 @@ import { X, Trash2 } from "lucide-react";
 import { useTransition } from "react";
 import { toast } from "sonner";
 import { removeAdjustmentAction } from "@/modules/payroll/actions";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import type {
   PayrollItemRow,
   PayrollPeriodStatus,
@@ -36,6 +37,7 @@ export default function BreakdownDrawer({
   onClose,
 }: Props) {
   const [pending, startTransition] = useTransition();
+  const confirm = useConfirm();
 
   if (!item) return null;
 
@@ -43,9 +45,16 @@ export default function BreakdownDrawer({
   const b = item.breakdown;
   const canEdit = periodStatus === "DRAFT";
 
-  function handleRemove(adjustmentId: string) {
+  async function handleRemove(adjustmentId: string) {
     if (!item) return;
-    if (!confirm("Xóa điều chỉnh này?")) return;
+    const ok = await confirm({
+      title: "Xoá điều chỉnh này?",
+      variant: "danger",
+      confirmLabel: "Xoá",
+      description:
+        "Số tiền của giáo viên sẽ được tính lại sau khi xoá. Hành động này không thể hoàn tác.",
+    });
+    if (!ok) return;
     startTransition(async () => {
       const r = await removeAdjustmentAction(item.id, periodId, adjustmentId);
       if (r.success) toast.success("Đã xóa điều chỉnh.");
@@ -84,16 +93,32 @@ export default function BreakdownDrawer({
 
         <div className="space-y-6 p-6">
           {/* ── Headline numbers ─────────────────────────────────── */}
+          {/* The middle tile adapts to the teacher's payment structure:
+              HOURLY / HYBRID care about hours; PER_SESSION cares only
+              about the per-session rate × session count (session duration
+              is irrelevant to pay); FIXED_MONTHLY shows the monthly base. */}
           <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <StatTile label="Số buổi" value={String(b.sessions_paid)} />
-            <StatTile
-              label="Tổng giờ"
-              value={
-                b.hours_taught_minutes > 0
-                  ? formatHoursDecimal(b.hours_taught_minutes)
-                  : "—"
-              }
-            />
+            {t.payment_structure === "PER_SESSION" ? (
+              <StatTile
+                label="Đơn giá / buổi"
+                value={formatVND(t.per_session_rate ?? 0)}
+              />
+            ) : t.payment_structure === "FIXED_MONTHLY" ? (
+              <StatTile
+                label="Lương cố định"
+                value={formatVND(t.fixed_monthly_amount ?? 0)}
+              />
+            ) : (
+              <StatTile
+                label="Tổng giờ"
+                value={
+                  b.hours_taught_minutes > 0
+                    ? formatHoursDecimal(b.hours_taught_minutes)
+                    : "—"
+                }
+              />
+            )}
             <StatTile label="Cơ bản" value={formatVND(b.calculated_amount)} />
             <StatTile
               label="Thực lĩnh"

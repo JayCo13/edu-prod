@@ -40,3 +40,32 @@ next-env.d.ts
 
 # Test coverage
 coverage/
+
+# Python (legacy backend was removed; this keeps stray __pycache__ /
+# venv folders from accidentally landing in commits if someone re-adds
+# Python scripting later)
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.venv/
+venv/
+
+# Netlify CLI / build cache
+.netlify/
+
+# Local Supabase dev-only helpers (concatenated SQL dumps, one-off ops
+# scripts). The authoritative migrations live in
+# backend/supabase/migrations/*.sql — anything starting with `_` is
+# disposable scratch.
+backend/supabase/_*
+
+# Next.js / Turbopack cache
+.turbo/
+
+# Claude Code / agent artifacts
+.claude/
+
+# Misc
+*.log
+.cache/

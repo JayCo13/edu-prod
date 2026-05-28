@@ -11,12 +11,19 @@ import {
   XCircle,
   ArrowRight,
   Sparkles,
+  Wallet,
+  CalendarDays,
+  Check,
 } from "lucide-react";
 
 import {
   createTenantOnboarding,
   checkSubdomain,
 } from "@/app/actions/onboarding";
+
+import { ACCENT } from "@/components/landing/_accent";
+
+type TenantKind = "CENTER" | "SCHOOL";
 
 /**
  * Onboarding Page
@@ -51,6 +58,11 @@ export default function OnboardingPage() {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [success, setSuccess] = useState(false);
+
+  // Step 1: pick product face. null = no choice yet → show picker screen.
+  // CENTER = trung tâm dạy thêm (payroll-first). SCHOOL = tiện ích thời
+  // khoá biểu cho trường học (TKB-first). Migration 0031 backs this.
+  const [kind, setKind] = useState<TenantKind | null>(null);
 
   // Form state
   const [tenantName, setTenantName] = useState("");
@@ -169,7 +181,13 @@ export default function OnboardingPage() {
     );
   }
 
-  // ── Onboarding Form ────────────────────────────────────────────
+  // ── Step 1: Product face picker ────────────────────────────────
+  if (kind === null) {
+    return <KindPicker onPick={setKind} />;
+  }
+
+  // ── Step 2: Onboarding Form ────────────────────────────────────
+  const isSchool = kind === "SCHOOL";
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-12">
       {/* Subtle grid bg */}
@@ -192,12 +210,20 @@ export default function OnboardingPage() {
             <GraduationCap className="h-7 w-7 text-white" />
           </motion.div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-            Tạo học viện của bạn
+            {isSchool ? "Tạo không gian trường học" : "Tạo trung tâm của bạn"}
           </h1>
           <p className="mx-auto mt-3 max-w-sm text-sm leading-relaxed text-slate-500">
-            Chỉ vài bước nữa thôi. Đặt tên và chọn địa chỉ cho trường học trực
-            tuyến của bạn.
+            {isSchool
+              ? "Đặt tên trường + địa chỉ truy cập. Sau đó bạn vào ngay phần Thời khoá biểu để xếp lịch."
+              : "Đặt tên trung tâm + địa chỉ truy cập. Sau đó bạn quản lý lịch dạy và bảng lương ở một chỗ."}
           </p>
+          <button
+            type="button"
+            onClick={() => setKind(null)}
+            className="mt-3 inline-flex items-center gap-1 font-mono text-[11px] uppercase tracking-wide text-slate-400 transition-colors hover:text-slate-600"
+          >
+            ← Đổi loại tài khoản
+          </button>
         </div>
 
         {/* Error */}
@@ -226,7 +252,7 @@ export default function OnboardingPage() {
               htmlFor="tenant_name"
               className="mb-2 block text-sm font-medium text-slate-700"
             >
-              Tên học viện
+              {isSchool ? "Tên trường" : "Tên trung tâm"}
             </label>
             <div className="relative">
               <GraduationCap className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
@@ -239,7 +265,11 @@ export default function OnboardingPage() {
                 maxLength={100}
                 value={tenantName}
                 onChange={(e) => setTenantName(e.target.value)}
-                placeholder='Ví dụ: "Toán Thầy Nam"'
+                placeholder={
+                  isSchool
+                    ? 'Ví dụ: "THCS Lê Quý Đôn"'
+                    : 'Ví dụ: "Anh ngữ ABC"'
+                }
                 className="w-full rounded-xl border border-slate-200 bg-white py-3.5 pl-12 pr-4 text-sm text-slate-900 shadow-sm outline-none transition-colors placeholder:text-slate-400 focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
               />
             </div>
@@ -251,7 +281,7 @@ export default function OnboardingPage() {
               htmlFor="subdomain"
               className="mb-2 block text-sm font-medium text-slate-700"
             >
-              Địa chỉ trường học
+              Địa chỉ truy cập
             </label>
             <div className="relative flex items-center">
               <Globe className="pointer-events-none absolute left-4 z-10 h-5 w-5 text-slate-400" />
@@ -322,6 +352,8 @@ export default function OnboardingPage() {
 
           {/* Hidden full_name field */}
           <input type="hidden" name="full_name" value={tenantName} />
+          {/* Product face — picked in step 1 (KindPicker above). */}
+          <input type="hidden" name="kind" value={kind} />
 
           {/* Submit */}
           <motion.button
@@ -333,11 +365,11 @@ export default function OnboardingPage() {
             {isPending ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Đang tạo học viện...
+                {isSchool ? "Đang tạo không gian trường..." : "Đang tạo trung tâm..."}
               </>
             ) : (
               <>
-                Tạo học viện
+                {isSchool ? "Tạo không gian trường" : "Tạo trung tâm"}
                 <ArrowRight className="h-4 w-4" />
               </>
             )}
@@ -347,6 +379,164 @@ export default function OnboardingPage() {
         {/* Footer note */}
         <p className="mt-6 text-center text-xs text-slate-400">
           Bạn có thể thay đổi thông tin này sau trong phần Cài đặt.
+        </p>
+      </motion.div>
+    </div>
+  );
+}
+
+// ── KindPicker ────────────────────────────────────────────────────────────
+//
+// Step 1 of onboarding. Asks the user whether they want the trung tâm
+// (payroll-first) product face or the trường học (timetable-first) one.
+// The choice is stored on `tenants.kind` (migration 0031) and drives nav
+// filtering + copy across the app.
+
+interface KindOption {
+  kind: TenantKind;
+  title: string;
+  tagline: string;
+  bullets: readonly string[];
+  badge: string;
+  icon: typeof Wallet;
+  accent: string;
+}
+
+const KIND_OPTIONS: readonly KindOption[] = [
+  {
+    kind: "CENTER",
+    title: "Trung tâm dạy thêm",
+    tagline: "Quản lý lịch dạy, lương giáo viên, học phí ở một chỗ.",
+    bullets: [
+      "Tự động tính lương theo buổi / giờ / lương cứng",
+      "Lịch dạy đa giáo viên · phát hiện trùng giờ",
+      "Xuất Excel bảng lương cho kế toán",
+      "Mời giáo viên qua email",
+    ],
+    badge: "Killer feature: Bảng lương",
+    icon: Wallet,
+    accent: ACCENT.solid,
+  },
+  {
+    kind: "SCHOOL",
+    title: "Tiện ích trường học",
+    tagline: "Xếp thời khoá biểu Thứ × Tiết × Giáo viên cho trường chính quy.",
+    bullets: [
+      "Định nghĩa Lớp · Môn · Khung tiết",
+      "Grid thời khoá biểu Mon–Sat trực quan",
+      "In / xuất Excel TKB cho học sinh, phụ huynh",
+      "Không có chức năng tính lương",
+    ],
+    badge: "Cho trường công, trường tư",
+    icon: CalendarDays,
+    accent: "#0891b2",
+  },
+];
+
+function KindPicker({ onPick }: { onPick: (k: TenantKind) => void }) {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-12">
+      <div className="pointer-events-none fixed inset-0 bg-[linear-gradient(to_right,_#f1f5f9_1px,_transparent_1px),_linear-gradient(to_bottom,_#f1f5f9_1px,_transparent_1px)] bg-[size:4rem_4rem]" />
+
+      <motion.div
+        className="relative z-10 w-full max-w-3xl"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, ease: "easeOut" as const }}
+      >
+        <div className="mb-10 text-center">
+          <motion.div
+            className="mx-auto mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-900"
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ type: "spring", stiffness: 300, damping: 20, delay: 0.1 }}
+          >
+            <Sparkles className="h-7 w-7 text-white" />
+          </motion.div>
+          <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+            Bước 1 / 2
+          </p>
+          <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+            Bạn đăng ký cho loại tổ chức nào?
+          </h1>
+          <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-slate-500">
+            Tuỳ lựa chọn, giao diện và tính năng sẽ được điều chỉnh phù hợp.
+            Có thể đổi sau trong Cài đặt.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {KIND_OPTIONS.map((opt, i) => {
+            const Icon = opt.icon;
+            return (
+              <motion.button
+                key={opt.kind}
+                type="button"
+                onClick={() => onPick(opt.kind)}
+                className="group relative flex flex-col items-start gap-4 overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 text-left transition-all hover:-translate-y-1 hover:border-slate-300"
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 + i * 0.08, duration: 0.4 }}
+                whileTap={{ scale: 0.98 }}
+                style={{
+                  boxShadow: `0 16px 40px -20px ${opt.accent}55`,
+                }}
+              >
+                <span
+                  className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wide"
+                  style={{
+                    background: `${opt.accent}15`,
+                    color: opt.accent,
+                  }}
+                >
+                  {opt.badge}
+                </span>
+
+                <div
+                  className="flex h-12 w-12 items-center justify-center rounded-2xl text-white"
+                  style={{ background: opt.accent }}
+                >
+                  <Icon className="h-6 w-6" />
+                </div>
+
+                <div>
+                  <h2 className="text-lg font-bold tracking-tight text-slate-900">
+                    {opt.title}
+                  </h2>
+                  <p className="mt-1 text-[13px] leading-relaxed text-slate-500">
+                    {opt.tagline}
+                  </p>
+                </div>
+
+                <ul className="space-y-1.5 text-[13px] text-slate-700">
+                  {opt.bullets.map((b) => (
+                    <li key={b} className="flex items-start gap-2">
+                      <span
+                        className="mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded-full"
+                        style={{ background: `${opt.accent}20`, color: opt.accent }}
+                      >
+                        <Check className="h-2.5 w-2.5" strokeWidth={3} />
+                      </span>
+                      {b}
+                    </li>
+                  ))}
+                </ul>
+
+                <div
+                  className="mt-2 inline-flex items-center gap-1.5 text-[13px] font-semibold transition-transform group-hover:translate-x-1"
+                  style={{ color: opt.accent }}
+                >
+                  Chọn {opt.title.toLowerCase()}
+                  <ArrowRight className="h-4 w-4" />
+                </div>
+              </motion.button>
+            );
+          })}
+        </div>
+
+        <p className="mt-8 text-center text-xs text-slate-400">
+          Không chắc chọn gì? Phần lớn trung tâm dạy thêm bên ngoài giờ học
+          chính khoá nên chọn <strong>Trung tâm dạy thêm</strong>.
         </p>
       </motion.div>
     </div>

@@ -2,21 +2,23 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard,
   BookOpen,
   Calendar,
-  Users,
+  CalendarDays,
   UserCog,
-  BarChart3,
   Settings,
   ChevronsLeft,
   GraduationCap,
-  Plus,
+  Wallet,
+  Banknote,
 } from "lucide-react";
 
 import { useSidebar } from "@/components/admin/sidebar-context";
+import { getCurrentTenantContextForClient } from "@/app/actions/tenant-teachers";
 
 /**
  * AnimatedSidebar
@@ -31,25 +33,49 @@ import { useSidebar } from "@/components/admin/sidebar-context";
 
 // ── Navigation Config ──────────────────────────────────────────────────────
 
+type TenantKind = "CENTER" | "SCHOOL";
+
 interface NavItem {
   label: string;
   href: string;
   icon: React.ComponentType<{ className?: string }>;
+  /** Hide this item when the viewer's role at the active tenant is admin.
+   *  Used for teacher-only surfaces like "Nhận lương" — admins don't
+   *  receive payouts, they pay them out. */
+  hideForAdmin?: boolean;
+  /** Which product face this item belongs to. Omit = always visible.
+   *  Migration 0031 introduced the CENTER/SCHOOL split chosen at signup. */
+  kinds?: readonly TenantKind[];
+  /** Mark as "beta" + disabled for these product faces. Used for
+   *  cross-face surfaces that aren't fully built yet (e.g. teacher
+   *  management for SCHOOL is still on the roadmap). */
+  betaFor?: readonly TenantKind[];
 }
 
 const NAV_ITEMS: NavItem[] = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  // [DEPRECATED per PRD §4.3] - hidden 2026-05-12 — LMS (courses/lessons) out of scope
-  // { label: "Courses", href: "/dashboard/courses", icon: BookOpen },
-  { label: "Lịch dạy", href: "/dashboard/calendar", icon: Calendar },
+  // CENTER-only: payroll-driving instance calendar.
+  { label: "Lịch dạy", href: "/dashboard/calendar", icon: Calendar, kinds: ["CENTER"] },
+  // SCHOOL-only: fixed weekly Mon–Sat × period × teacher grid (PRD §5.5).
+  // Generates exportable timetable; doesn't drive payroll.
+  { label: "Thời khoá biểu mẫu", href: "/dashboard/timetable", icon: CalendarDays, kinds: ["SCHOOL"] },
+  // Admin-managed catalog. CENTER uses it for class definitions; SCHOOL doesn't
+  // need it (subjects live inside the timetable section).
+  { label: "Khóa học", href: "/dashboard/courses", icon: BookOpen, kinds: ["CENTER"] },
+  // Visible in both faces. SCHOOL uses a stripped-down create flow
+  // (display_name + color only, no auth account, no invite email — see
+  // createTenantTeacher's "lite mode" when email is empty).
   { label: "Giáo viên", href: "/dashboard/teachers", icon: UserCog },
-  { label: "Students", href: "/dashboard/students", icon: Users },
-  { label: "Analytics", href: "/dashboard/analytics", icon: BarChart3 },
+  // Killer feature (PRD §5.8) — CENTER only. SCHOOL is a TKB utility, not a
+  // payroll product.
+  { label: "Bảng lương", href: "/admin/payroll", icon: Wallet, kinds: ["CENTER"] },
+  // Teacher-side surface — admins shouldn't see this (they manage payroll
+  // via /admin/payroll). Also CENTER-only since SCHOOL has no payroll.
+  { label: "Nhận lương", href: "/dashboard/payouts", icon: Banknote, hideForAdmin: true, kinds: ["CENTER"] },
+  { label: "Cài đặt", href: "/admin/settings", icon: Settings },
   // [DEPRECATED per PRD §4.3] - hidden 2026-05-12 — teacher public storefront out of scope
   // { label: "Trang cá nhân", href: "/dashboard/profile", icon: Settings },
 ];
-
-const QUICK_CREATE_HREF = "/dashboard/calendar?create=1";
 
 // ── Animation Variants ─────────────────────────────────────────────────────
 
@@ -85,6 +111,27 @@ export default function AnimatedSidebar() {
   const pathname = usePathname();
   const { isCollapsed, toggleCollapse } = useSidebar();
 
+  // Resolve viewer role + product face at the active tenant. null = still
+  // loading; during load we show CENTER items (the historical default)
+  // optimistically so the layout doesn't flicker when context resolves.
+  const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
+  const [kind, setKind] = useState<TenantKind | null>(null);
+  useEffect(() => {
+    getCurrentTenantContextForClient().then((r) => {
+      if (r.success && r.data) {
+        setIsAdmin(r.data.isAdmin);
+        setKind(r.data.kind);
+      }
+    });
+  }, []);
+
+  const effectiveKind: TenantKind = kind ?? "CENTER";
+  const visibleItems = NAV_ITEMS.filter((it) => {
+    if (isAdmin === true && it.hideForAdmin) return false;
+    if (it.kinds && !it.kinds.includes(effectiveKind)) return false;
+    return true;
+  });
+
   return (
     <motion.aside
       className="hidden lg:flex h-full flex-col border-r border-slate-100 bg-white"
@@ -93,51 +140,10 @@ export default function AnimatedSidebar() {
       transition={{ type: "spring", stiffness: 300, damping: 30 }}
     >
       {/* ── Brand ─────────────────────────────────────────── */}
-      <div className="flex h-16 items-center gap-3 border-b border-slate-100 px-5">
+      <div className="flex h-16 items-center border-b border-slate-100 px-5">
         <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-slate-900">
           <GraduationCap className="h-4 w-4 text-white" />
         </div>
-        <AnimatePresence mode="wait">
-          {!isCollapsed && (
-            <motion.span
-              key="brand-text"
-              variants={textVariants}
-              initial="hide"
-              animate="show"
-              exit="hide"
-              className="overflow-hidden whitespace-nowrap text-base font-semibold tracking-tight text-slate-900"
-            >
-              VLearning
-            </motion.span>
-          )}
-        </AnimatePresence>
-      </div>
-
-      {/* ── Quick Create — opens the schedule modal from anywhere ── */}
-      <div className="mt-4 px-3">
-        <Link
-          href={QUICK_CREATE_HREF}
-          title={isCollapsed ? "Tạo buổi học Live" : undefined}
-          className={`group flex items-center gap-2 rounded-xl bg-slate-900 text-white shadow-sm transition-opacity hover:opacity-90 ${
-            isCollapsed ? "justify-center px-2 py-2.5" : "px-3 py-2.5"
-          }`}
-        >
-          <Plus className="h-[18px] w-[18px] shrink-0" />
-          <AnimatePresence mode="wait">
-            {!isCollapsed && (
-              <motion.span
-                key="quick-create-text"
-                variants={textVariants}
-                initial="hide"
-                animate="show"
-                exit="hide"
-                className="overflow-hidden whitespace-nowrap text-sm font-semibold"
-              >
-                Tạo buổi học Live
-              </motion.span>
-            )}
-          </AnimatePresence>
-        </Link>
       </div>
 
       {/* ── Navigation ────────────────────────────────────── */}
@@ -147,10 +153,64 @@ export default function AnimatedSidebar() {
         initial="hide"
         animate="show"
       >
-        {NAV_ITEMS.map((item) => {
+        {visibleItems.map((item) => {
           const isActive =
             pathname === item.href ||
             (item.href !== "/dashboard" && pathname.startsWith(item.href));
+          const isBeta = !!item.betaFor?.includes(effectiveKind);
+
+          // Shared inner row content — kept identical between the Link and
+          // disabled-div branches so the visual layout stays in sync.
+          const rowInner = (
+            <>
+              {isActive && !isBeta && (
+                <motion.div
+                  layoutId="sidebar-active-indicator"
+                  className="absolute inset-0 rounded-xl bg-slate-50"
+                  transition={{ type: "spring", stiffness: 350, damping: 30 }}
+                />
+              )}
+
+              <item.icon className="relative z-10 h-[18px] w-[18px] shrink-0" />
+
+              <AnimatePresence mode="wait">
+                {!isCollapsed && (
+                  <motion.span
+                    key={`label-${item.href}`}
+                    variants={textVariants}
+                    initial="hide"
+                    animate="show"
+                    exit="hide"
+                    className="relative z-10 flex flex-1 items-center gap-2 overflow-hidden whitespace-nowrap"
+                  >
+                    {item.label}
+                    {isBeta && (
+                      <span
+                        className="ml-auto rounded-md bg-amber-50 px-1.5 py-0.5 font-mono text-[9.5px] font-bold uppercase tracking-wide text-amber-700 ring-1 ring-inset ring-amber-200"
+                        title="Tính năng đang phát triển — sắp ra mắt"
+                      >
+                        Beta
+                      </span>
+                    )}
+                  </motion.span>
+                )}
+              </AnimatePresence>
+            </>
+          );
+
+          if (isBeta) {
+            return (
+              <motion.div key={item.href} variants={navItemVariants}>
+                <div
+                  aria-disabled="true"
+                  title="Sắp ra mắt cho Trường học"
+                  className="group relative flex cursor-not-allowed items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-300"
+                >
+                  {rowInner}
+                </div>
+              </motion.div>
+            );
+          }
 
           return (
             <motion.div key={item.href} variants={navItemVariants}>
@@ -166,31 +226,7 @@ export default function AnimatedSidebar() {
                   }
                 `}
               >
-                {/* Active Indicator — slides between items via layoutId */}
-                {isActive && (
-                  <motion.div
-                    layoutId="sidebar-active-indicator"
-                    className="absolute inset-0 rounded-xl bg-slate-50"
-                    transition={{ type: "spring", stiffness: 350, damping: 30 }}
-                  />
-                )}
-
-                <item.icon className="relative z-10 h-[18px] w-[18px] shrink-0" />
-
-                <AnimatePresence mode="wait">
-                  {!isCollapsed && (
-                    <motion.span
-                      key={`label-${item.href}`}
-                      variants={textVariants}
-                      initial="hide"
-                      animate="show"
-                      exit="hide"
-                      className="relative z-10 overflow-hidden whitespace-nowrap"
-                    >
-                      {item.label}
-                    </motion.span>
-                  )}
-                </AnimatePresence>
+                {rowInner}
               </Link>
             </motion.div>
           );

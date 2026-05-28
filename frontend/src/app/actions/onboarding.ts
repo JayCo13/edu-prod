@@ -52,6 +52,12 @@ export async function createTenantOnboarding(
     const tenantName = (formData.get("tenant_name") as string)?.trim();
     const subdomain = (formData.get("subdomain") as string)?.trim().toLowerCase();
     const fullName = (formData.get("full_name") as string)?.trim();
+    // Product-face split (migration 0031). 'CENTER' = trung tâm dạy thêm
+    // (payroll-first), 'SCHOOL' = tiện ích thời khoá biểu cho trường học.
+    // Default to CENTER if absent — preserves behavior for old clients.
+    const rawKind = (formData.get("kind") as string)?.trim().toUpperCase();
+    const kind: "CENTER" | "SCHOOL" =
+      rawKind === "SCHOOL" ? "SCHOOL" : "CENTER";
 
     // Validation
     if (!tenantName || tenantName.length < 2) {
@@ -99,6 +105,7 @@ export async function createTenantOnboarding(
       owner_id: user.id,
       name: tenantName,
       subdomain,
+      kind,
     });
 
     if (tenantError) {

@@ -24,7 +24,7 @@ const PERIOD_COLUMNS =
   "id,center_id,period_start,period_end,status,approved_by,approved_at,paid_at,notes,created_at,updated_at";
 
 const ITEM_COLUMNS =
-  "id,payroll_period_id,teacher_id,teacher_snapshot,calculated_amount,final_amount,adjustments,breakdown,audit_trail,notes,created_at,updated_at";
+  "id,payroll_period_id,teacher_id,teacher_snapshot,calculated_amount,final_amount,adjustments,breakdown,audit_trail,notes,payment_method,paid_at,paid_by,paid_note,created_at,updated_at";
 
 // ─── Periods ─────────────────────────────────────────────────────────────────
 

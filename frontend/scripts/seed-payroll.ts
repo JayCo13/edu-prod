@@ -206,6 +206,10 @@ function calcItem(
     breakdown: result.breakdown,
     audit_trail: result.audit_trail as AuditEntry[],
     notes: "",
+    payment_method: null,
+    paid_at: null,
+    paid_by: null,
+    paid_note: "",
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   };

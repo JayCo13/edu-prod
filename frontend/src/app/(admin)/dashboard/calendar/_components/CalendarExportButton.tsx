@@ -53,6 +53,8 @@ const SCOPES: ScopeDef[] = [
 
 interface CalendarExportButtonProps {
   sessions: TeacherSessionRow[];
+  /** Center / tenant name printed at the top of the Excel export. */
+  centerName?: string | null;
 }
 
 function sessionToCalendarEvent(s: TeacherSessionRow): CalendarEvent {
@@ -90,6 +92,7 @@ function formatDateForFilename(date: Date): string {
 
 export default function CalendarExportButton({
   sessions,
+  centerName,
 }: CalendarExportButtonProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [scope, setScope] = useState<ScopeId>("upcoming");
@@ -147,10 +150,17 @@ export default function CalendarExportButton({
       toast.error("Không có buổi học nào phù hợp với phạm vi đã chọn.");
       return;
     }
-    const filename = `lich-day-truc-tuyen-${target}-${formatDateForFilename(new Date())}.xlsx`;
+    // Filename includes the actual date range so a user can tell two
+    // exports apart at a glance ("lich-day-20260501-20260531.xlsx").
+    const times = matched.map((s) => new Date(s.start_time).getTime());
+    const min = new Date(Math.min(...times));
+    const max = new Date(Math.max(...times));
+    const filename = `lich-day-${formatDateForFilename(min)}-${formatDateForFilename(max)}.xlsx`;
     try {
       setIsExportingExcel(true);
-      await exportSessionsToExcel(matched, filename);
+      await exportSessionsToExcel(matched, filename, {
+        centerName: centerName ?? undefined,
+      });
       toast.success(
         `Đã tải ${matched.length} buổi học vào file ${filename}.`,
       );

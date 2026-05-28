@@ -1,74 +1,181 @@
+import Link from "next/link";
 import { ArrowRight, Check, Sparkles } from "lucide-react";
+
 import { ACCENT } from "./_accent";
+
+/**
+ * Pricing — 4 tiers per-active-teacher. Growth highlighted.
+ * Ported from the design bundle.
+ */
 
 interface PlanProps {
   name: string;
+  range: string;
   price: string;
   suffix: string;
   desc: string;
   features: string[];
   highlight?: boolean;
+  cta: { label: string; href: string };
 }
 
-function Plan({ name, price, suffix, desc, features, highlight }: PlanProps) {
+// Pricing trong giai đoạn early access — số liệu hold-firm, không hứa SLA,
+// không hứa tích hợp ngân hàng, không hứa support 24/7. Các tính năng bên
+// dưới là những thứ đã hoặc đang được xây — không phải roadmap xa.
+const PLANS: PlanProps[] = [
+  {
+    name: "Early access",
+    range: "≤ 10 giáo viên",
+    price: "Miễn phí",
+    suffix: "trong giai đoạn beta",
+    desc:
+      "Cho trung tâm muốn dùng thử + góp ý cải tiến trong giai đoạn beta.",
+    features: [
+      "Tính lương theo giờ / theo buổi / lương cứng / kết hợp",
+      "Lịch dạy đa giáo viên",
+      "Thời khoá biểu Ngày × Tiết × Giáo viên",
+      "Xuất Excel BẢNG LƯƠNG",
+      "Quản lý giáo viên + mời qua email",
+      "Hỗ trợ qua email (giờ hành chính)",
+    ],
+    cta: { label: "Đăng ký dùng thử", href: "#demo" },
+  },
+  {
+    name: "Growth",
+    range: "≤ 50 giáo viên",
+    price: "Sẽ thông báo",
+    suffix: "trước ≥ 30 ngày khi tính phí",
+    desc:
+      "Khi rời beta sẽ chuyển sang tính phí theo số giáo viên active. Báo trước ≥ 30 ngày.",
+    highlight: true,
+    features: [
+      "Mọi tính năng Early access",
+      "Phân vai trò Admin / Teacher",
+      "Nhiều admin trên cùng một trung tâm",
+      "Audit log cho điều chỉnh lương",
+      "Bulk import danh sách giáo viên / lớp / học sinh",
+    ],
+    cta: { label: "Đặt lịch demo 15 phút", href: "#demo" },
+  },
+  {
+    name: "Liên hệ",
+    range: "50+ GV hoặc cần tuỳ chỉnh",
+    price: "Liên hệ",
+    suffix: "",
+    desc: "Trung tâm lớn, có nhu cầu tuỳ chỉnh hoặc tích hợp.",
+    features: [
+      "Workshop onboarding tại trung tâm",
+      "Hỗ trợ migration từ Excel",
+      "Tuỳ chỉnh báo cáo theo trung tâm",
+      "Hợp đồng + xuất hoá đơn VAT",
+    ],
+    cta: { label: "Gửi email", href: "mailto:hello@vlearning.io" },
+  },
+];
+
+export default function Pricing() {
+  const A = ACCENT;
+  return (
+    <section id="pricing" className="bg-white py-24 sm:py-28">
+      <div className="mx-auto max-w-7xl px-6 lg:px-10">
+        <div className="mx-auto max-w-2xl text-center">
+          <p
+            className="font-mono text-[13px] font-bold uppercase tracking-[0.18em]"
+            style={{ color: A.solid }}
+          >
+            · BẢNG GIÁ
+          </p>
+          <h2 className="mt-3 font-display text-[34px] font-bold leading-[1.1] tracking-tight text-slate-900 sm:text-[44px]">
+            Đang trong giai đoạn beta.
+            <br />
+            <span className="text-slate-400">Miễn phí cho trung tâm dùng thử.</span>
+          </h2>
+          <p className="mt-4 text-[15px] text-slate-600">
+            Khi rời beta sẽ chuyển sang tính phí theo số giáo viên active. Báo
+            trước ít nhất 30 ngày trước khi áp dụng — bạn không bị bất ngờ.
+          </p>
+        </div>
+
+        <div className="mt-14 grid grid-cols-1 gap-4 lg:grid-cols-3">
+          {PLANS.map((p) => (
+            <Plan key={p.name} {...p} A={A} />
+          ))}
+        </div>
+
+        <p className="mt-8 text-center font-mono text-[11px] text-slate-400">
+          * Khái niệm &ldquo;giáo viên active&rdquo; = có ≥ 1 buổi dạy trong
+          tháng. Slot không dùng = không tính phí khi tới giai đoạn tính phí.
+        </p>
+      </div>
+    </section>
+  );
+}
+
+function Plan({
+  name,
+  range,
+  price,
+  suffix,
+  desc,
+  features,
+  highlight,
+  cta,
+  A,
+}: PlanProps & { A: typeof ACCENT }) {
+  // Highlight pattern: white card + 2px accent border + accent-tinted shadow
+  // ring, instead of the previous dark-inverted look. Keeps text colors
+  // consistent across all 3 plans and reads as "premium" without the heavy
+  // black fill.
   return (
     <div
-      className={`relative flex flex-col rounded-2xl p-7 transition-all ${
-        highlight
-          ? "bg-slate-900 text-white shadow-2xl shadow-slate-900/20"
-          : "border border-slate-200 bg-white"
+      className={`relative flex flex-col rounded-2xl bg-white p-6 transition-all ${
+        highlight ? "border-2 shadow-2xl" : "border border-slate-200"
       }`}
+      style={
+        highlight
+          ? {
+              borderColor: A.solid,
+              boxShadow: `0 24px 50px -12px ${A.shadow}, 0 0 0 6px ${A.tint}`,
+            }
+          : undefined
+      }
     >
       {highlight && (
         <span
-          className="absolute -top-3 left-7 inline-flex items-center gap-1 rounded-full px-3 py-1 text-[10.5px] font-semibold text-white"
-          style={{ background: ACCENT.solid }}
+          className="absolute -top-3 left-6 inline-flex items-center gap-1 rounded-full px-3 py-1 text-[10.5px] font-semibold text-white"
+          style={{ background: A.solid }}
         >
-          <Sparkles className="h-3 w-3" strokeWidth={2.5} /> Phổ biến nhất
+          <Sparkles className="h-3 w-3" />
+          Phổ biến nhất
         </span>
       )}
       <p
-        className={`font-mono text-[10.5px] font-semibold uppercase tracking-[0.16em] ${
-          highlight ? "text-white/60" : "text-slate-400"
-        }`}
+        className="font-mono text-[10.5px] font-semibold uppercase tracking-[0.16em]"
+        style={highlight ? { color: A.solid } : { color: "rgb(148 163 184)" }}
       >
         {name}
       </p>
-      <div className="mt-3 flex items-baseline gap-1">
-        <span
-          className={`font-display text-[42px] font-bold tracking-tight ${
-            highlight ? "text-white" : "text-slate-900"
-          }`}
-        >
+      <p className="mt-1 text-[12.5px] font-medium text-slate-700">{range}</p>
+      {/* Price + suffix stack vertically so long copy ("Đang định giá",
+          "thông báo trước khi tính phí") doesn't crash into the 36px price
+          number on the same line. */}
+      <div className="mt-4">
+        <p className="font-display text-[36px] font-bold leading-tight tracking-tight tabular-nums text-slate-900">
           {price}
-        </span>
-        <span
-          className={`text-[14px] ${highlight ? "text-white/60" : "text-slate-500"}`}
-        >
-          {suffix}
-        </span>
+        </p>
+        {suffix && (
+          <p className="mt-1 font-mono text-[11.5px] leading-snug text-slate-500">
+            {suffix}
+          </p>
+        )}
       </div>
-      <p
-        className={`mt-2 text-[13.5px] ${highlight ? "text-white/70" : "text-slate-600"}`}
-      >
-        {desc}
-      </p>
-      <ul
-        className={`mt-6 flex-1 space-y-2.5 text-[13.5px] ${
-          highlight ? "text-white/85" : "text-slate-700"
-        }`}
-      >
+      <p className="mt-3 text-[13px] text-slate-600">{desc}</p>
+      <ul className="mt-5 flex-1 space-y-2 text-[13px] text-slate-700">
         {features.map((f) => (
-          <li key={f} className="flex items-start gap-2.5">
+          <li key={f} className="flex items-start gap-2">
             <span
-              className={`mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded-full ${
-                highlight ? "bg-white/15" : ""
-              }`}
-              style={
-                !highlight
-                  ? { background: ACCENT.tint, color: ACCENT.solid }
-                  : { color: "white" }
-              }
+              className="mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded-full"
+              style={{ background: A.tint, color: A.solid }}
             >
               <Check className="h-2.5 w-2.5" strokeWidth={3} />
             </span>
@@ -76,74 +183,18 @@ function Plan({ name, price, suffix, desc, features, highlight }: PlanProps) {
           </li>
         ))}
       </ul>
-      {/* [DEPRECATED per PRD §4.3] - hidden 2026-05-12
-          Teacher self-signup CTA. PRD §8.1: replace with demo-booking CTA for center owners.
-      <a
-        href="/register"
-        className={`mt-7 inline-flex items-center justify-center gap-1.5 rounded-xl py-3 text-[13.5px] font-semibold transition-all hover:scale-[1.01] ${
+      <Link
+        href={cta.href}
+        className={`mt-6 inline-flex items-center justify-center gap-1.5 rounded-xl py-2.5 text-[13px] font-semibold transition-all hover:scale-[1.01] ${
           highlight
-            ? "bg-white text-slate-900"
+            ? "text-white"
             : "border border-slate-200 bg-white text-slate-900 hover:bg-slate-50"
         }`}
+        style={highlight ? { background: A.solid } : undefined}
       >
-        {highlight ? "Bắt đầu Pro" : "Bắt đầu miễn phí"}
+        {cta.label}
         <ArrowRight className="h-3.5 w-3.5" />
-      </a>
-      */}
+      </Link>
     </div>
-  );
-}
-
-export default function Pricing() {
-  return (
-    <section id="pricing" className="bg-white py-24 sm:py-28">
-      <div className="mx-auto max-w-7xl px-6 lg:px-10">
-        <div className="mx-auto max-w-2xl text-center">
-          <p
-            className="font-mono text-[13px] font-bold uppercase tracking-[0.18em]"
-            style={{ color: ACCENT.solid }}
-          >
-            · 02 — Bảng giá
-          </p>
-          <h2 className="font-display mt-3 text-[34px] font-bold leading-[1.1] tracking-tight text-slate-900 sm:text-[44px]">
-            Đơn giản. Minh bạch.{" "}
-            <span className="text-slate-400">Không phát sinh.</span>
-          </h2>
-          <p className="mt-4 text-[15px] text-slate-600">
-            Bắt đầu miễn phí — chỉ trả phí khi bạn đã có doanh thu.
-          </p>
-        </div>
-
-        <div className="mt-14 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:mx-auto lg:max-w-4xl">
-          <Plan
-            name="Starter"
-            price="Miễn phí"
-            suffix="mãi mãi"
-            desc="Đủ dùng để khởi đầu — không cần thẻ tín dụng."
-            features={[
-              "1 khóa học · không giới hạn bài giảng",
-              "100GB storage video",
-              "Subdomain .vlearning.io",
-              "Phí giao dịch 8% mỗi đơn",
-            ]}
-          />
-          <Plan
-            name="Pro"
-            price="₫390k"
-            suffix="/tháng"
-            desc="Cho giáo viên muốn build thương hiệu chuyên nghiệp."
-            highlight
-            features={[
-              "Khóa & học viên không giới hạn",
-              "1TB storage · CDN toàn cầu",
-              "Tên miền riêng + email branded",
-              "Phí giao dịch chỉ 5%",
-              "Livestream Zoom tích hợp",
-              "Hỗ trợ ưu tiên 24/7",
-            ]}
-          />
-        </div>
-      </div>
-    </section>
   );
 }

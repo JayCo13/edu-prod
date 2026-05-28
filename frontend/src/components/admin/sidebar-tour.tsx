@@ -1,23 +1,26 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 
 import { getCurrentTenantContextForClient } from "@/app/actions/tenant-teachers";
 
 // ── Cấu hình tour ───────────────────────────────────────────────────────────
 //
-// Tour đi theo 2 lớp: trỏ vào mục trong thanh bên (sidebar), rồi đi sâu vào
-// các tính năng bên trong từng mục. Mỗi bước nói rõ:
-//   • `selector`  — CSS selector tới phần tử cần làm nổi bật
-//   • `page`      — (tuỳ chọn) route phải đang ở; nếu không thì tour tự
-//                   điều hướng sang bằng router.push()
-//   • `kinds`     — chỉ chạy với loại trung tâm tương ứng (CENTER / SCHOOL).
-//                   Bỏ trống = áp dụng cho cả hai.
-//   • `hideForAdmin` — bỏ qua bước này nếu người dùng là quản trị viên.
+// Tour đi theo 2 lớp: trỏ vào mục trong thanh bên, rồi đi sâu vào các tính
+// năng bên trong từng mục. Bước nào không khớp với loại trung tâm hoặc vai
+// trò người dùng sẽ bị lọc khỏi danh sách *trước khi* tour chạy.
 
 type TenantKind = "CENTER" | "SCHOOL";
+type Direction = "forward" | "backward";
 
 interface TourStep {
   selector: string;
@@ -29,7 +32,6 @@ interface TourStep {
 }
 
 const STEPS: TourStep[] = [
-  // ── Trang chủ ──────────────────────────────────────────────────────────
   {
     selector: '[data-tour-key="/dashboard"]',
     page: "/dashboard",
@@ -65,11 +67,9 @@ const STEPS: TourStep[] = [
     page: "/dashboard",
     title: "Tổng quan tài chính tháng này",
     description:
-      "Tổng lương dự kiến, đã chi, số buổi đã / đang dạy — cập nhật tự động khi có thay đổi.",
+      "Tổng lương dự kiến, đã chi, số buổi đã / đang dạy — cập nhật tự động.",
     kinds: ["CENTER"],
   },
-
-  // ── Lịch dạy (chỉ trung tâm) ───────────────────────────────────────────
   {
     selector: '[data-tour-key="/dashboard/calendar"]',
     page: "/dashboard/calendar",
@@ -78,8 +78,6 @@ const STEPS: TourStep[] = [
       "Sắp xếp buổi học theo tuần hoặc tháng. Hệ thống tự cảnh báo khi giáo viên trùng giờ.",
     kinds: ["CENTER"],
   },
-
-  // ── Thời khoá biểu (chỉ trường) ────────────────────────────────────────
   {
     selector: '[data-tour-key="/dashboard/timetable"]',
     page: "/dashboard/timetable",
@@ -96,8 +94,6 @@ const STEPS: TourStep[] = [
       "Bấm vào đây để mở trang chính — kéo thả môn vào ô, sao chép giữa các lớp, hoàn tác / làm lại.",
     kinds: ["SCHOOL"],
   },
-
-  // ── Khóa học (chỉ trung tâm) ───────────────────────────────────────────
   {
     selector: '[data-tour-key="/dashboard/courses"]',
     page: "/dashboard/courses",
@@ -106,8 +102,6 @@ const STEPS: TourStep[] = [
       "Khai báo các khóa học và giáo viên phụ trách — dùng làm khuôn cho buổi dạy.",
     kinds: ["CENTER"],
   },
-
-  // ── Giáo viên (cả hai) ─────────────────────────────────────────────────
   {
     selector: '[data-tour-key="/dashboard/teachers"]',
     page: "/dashboard/teachers",
@@ -122,8 +116,6 @@ const STEPS: TourStep[] = [
     description:
       "Nhập email và mật khẩu tạm — giáo viên đổi mật khẩu trong vòng 24 giờ là dùng được tài khoản.",
   },
-
-  // ── Bảng lương (chỉ trung tâm) ─────────────────────────────────────────
   {
     selector: '[data-tour-key="/admin/payroll"]',
     page: "/admin/payroll",
@@ -140,8 +132,6 @@ const STEPS: TourStep[] = [
       "Chọn khoảng thời gian, hệ thống tự tổng hợp các buổi đã hoàn thành và tính số tiền cho từng giáo viên.",
     kinds: ["CENTER"],
   },
-
-  // ── Nhận lương (chỉ giáo viên, không hiện cho admin) ───────────────────
   {
     selector: '[data-tour-key="/dashboard/payouts"]',
     page: "/dashboard/payouts",
@@ -151,8 +141,6 @@ const STEPS: TourStep[] = [
     kinds: ["CENTER"],
     hideForAdmin: true,
   },
-
-  // ── Cài đặt (cả hai) ───────────────────────────────────────────────────
   {
     selector: '[data-tour-key="/admin/settings"]',
     page: "/admin/settings",
@@ -163,12 +151,10 @@ const STEPS: TourStep[] = [
 ];
 
 const STORAGE_KEY = "tour:admin:v3";
-
 const HIGHLIGHT_PADDING = 6;
-
-// Khi đến một bước, nếu phần tử chưa có trong DOM (vd. trang đang load
-// sau khi router.push), poll lại mỗi 100ms tới giới hạn này.
-const ELEMENT_WAIT_TIMEOUT_MS = 3000;
+// Đã prefetch sẵn → đường dẫn DOM mới hầu như có ngay; cho một biên độ
+// nhỏ để chờ phần tử in-page xuất hiện sau khi navigate.
+const WAIT_TIMEOUT_MS = 1800;
 
 interface Rect {
   top: number;
@@ -177,7 +163,23 @@ interface Rect {
   height: number;
 }
 
-type Direction = "forward" | "backward";
+function measureRect(el: HTMLElement): Rect | null {
+  const r = el.getBoundingClientRect();
+  if (r.width <= 0 || r.height <= 0) return null;
+  return {
+    top: r.top - HIGHLIGHT_PADDING,
+    left: r.left - HIGHLIGHT_PADDING,
+    width: r.width + HIGHLIGHT_PADDING * 2,
+    height: r.height + HIGHLIGHT_PADDING * 2,
+  };
+}
+
+// ── Tham số animation ──────────────────────────────────────────────────────
+//
+// Một bộ transition duy nhất, ngắn + ease tự nhiên. Tránh spring vì spring
+// có overshoot làm cảm giác "trễ" khi chuyển bước nhanh.
+const FAST_EASE = [0.16, 1, 0.3, 1] as const; // ease-out-expo
+const FAST = { duration: 0.32, ease: FAST_EASE };
 
 // ── Component ───────────────────────────────────────────────────────────────
 
@@ -185,22 +187,29 @@ export function SidebarTour() {
   const router = useRouter();
   const pathname = usePathname();
 
-  // null = chưa kiểm tra localStorage; false = không hiện; true = đang chạy.
-  const [active, setActive] = useState<boolean | null>(null);
-  const [stepIndex, setStepIndex] = useState(0);
-  const [rect, setRect] = useState<Rect | null>(null);
-  const [viewport, setViewport] = useState({ w: 0, h: 0 });
-
-  // Loại trung tâm + vai trò người dùng. null = đang chờ kết quả từ server.
-  // Phải lấy được trước khi quyết định danh sách bước nào áp dụng.
+  // Các pha hoạt động — gọn hơn nhiều cờ rời rạc.
+  //   loading   = đang đợi context người dùng
+  //   ready     = đã có context, đang quyết định bật / tắt
+  //   running   = tour đang chạy
+  //   done      = đã đóng (đã xem hoặc người dùng bỏ qua)
+  const [phase, setPhase] = useState<"loading" | "ready" | "running" | "done">(
+    "loading",
+  );
   const [kind, setKind] = useState<TenantKind | null>(null);
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
 
-  // Hướng đi hiện tại — dùng cho logic auto-skip khi phần tử không có
-  // trong DOM. Ref để không kích hoạt re-render mỗi khi đổi hướng.
+  const [stepIndex, setStepIndex] = useState(0);
+  // rect giữ lại giá trị cũ trong khi tour navigate sang trang mới → không
+  // nhấp nháy / không "biến mất" khung sáng giữa các bước.
+  const [rect, setRect] = useState<Rect | null>(null);
+
   const directionRef = useRef<Direction>("forward");
 
-  // Danh sách bước thực tế áp dụng cho người dùng này.
+  // Lưu kích thước viewport trong ref (không gây re-render khi resize) và
+  // chỉ force-render đúng một lần qua state `vp` sau khi đã debounce.
+  const [vp, setVp] = useState({ w: 0, h: 0 });
+
+  // Lọc danh sách bước theo loại trung tâm + vai trò người dùng.
   const steps = useMemo(() => {
     if (kind === null || isAdmin === null) return [];
     return STEPS.filter((s) => {
@@ -210,7 +219,7 @@ export function SidebarTour() {
     });
   }, [kind, isAdmin]);
 
-  // Lấy context trung tâm (loại + vai trò) trước khi bật tour.
+  // ── 1. Lấy context (loại trung tâm + vai trò) ─────────────────────────
   useEffect(() => {
     let cancelled = false;
     getCurrentTenantContextForClient().then((r) => {
@@ -218,10 +227,9 @@ export function SidebarTour() {
       if (r.success && r.data) {
         setKind(r.data.kind);
         setIsAdmin(r.data.isAdmin);
+        setPhase("ready");
       } else {
-        // Không lấy được context — không chạy tour (tránh điều hướng lung
-        // tung). User vẫn có thể vào từng mục thủ công.
-        setActive(false);
+        setPhase("done");
       }
     });
     return () => {
@@ -229,103 +237,129 @@ export function SidebarTour() {
     };
   }, []);
 
-  // Bật tour lần đầu — chỉ sau khi đã có context. Đợi thêm 600ms cho
-  // sidebar render xong rồi mới đo vị trí phần tử đầu tiên.
+  // ── 2. Quyết định bật / tắt ngay khi context có ──────────────────────
   useEffect(() => {
-    if (kind === null || isAdmin === null) return;
-    if (active !== null) return; // đã quyết định rồi
+    if (phase !== "ready") return;
     try {
       if (localStorage.getItem(STORAGE_KEY) === "1") {
-        setActive(false);
+        setPhase("done");
         return;
       }
     } catch {
       /* localStorage không dùng được — vẫn chạy */
     }
-    const t = setTimeout(() => setActive(true), 600);
-    return () => clearTimeout(t);
-  }, [kind, isAdmin, active]);
+    setPhase("running");
+  }, [phase]);
 
-  // Theo dõi kích thước viewport.
+  // ── 3. Prefetch tất cả route mà tour sẽ đi qua ───────────────────────
+  //
+  // Đây là điểm tăng tốc quan trọng nhất. Sau prefetch, router.push() tới
+  // các route đó dùng cache của RSC ngay lập tức → không thấy skeleton
+  // loading.tsx nhấp nháy khi chuyển bước.
   useEffect(() => {
-    function onResize() {
-      setViewport({ w: window.innerWidth, h: window.innerHeight });
+    if (phase !== "running") return;
+    const seen = new Set<string>();
+    for (const s of steps) {
+      if (s.page && !seen.has(s.page)) {
+        seen.add(s.page);
+        router.prefetch(s.page);
+      }
     }
-    onResize();
+  }, [phase, steps, router]);
+
+  // ── 4. Viewport — debounce resize bằng rAF ───────────────────────────
+  useEffect(() => {
+    function read() {
+      setVp({ w: window.innerWidth, h: window.innerHeight });
+    }
+    read();
+    let raf = 0;
+    function onResize() {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(read);
+    }
     window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("resize", onResize);
+    };
   }, []);
 
-  // Mobile bỏ qua tour (sidebar là drawer, không cố định để đo).
+  // Mobile bỏ qua (sidebar là drawer, không cố định để đo).
   useEffect(() => {
-    if (active === true && viewport.w > 0 && viewport.w < 1024) {
-      finish();
-    }
+    if (phase === "running" && vp.w > 0 && vp.w < 1024) finish();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active, viewport.w]);
+  }, [phase, vp.w]);
 
-  // ── Tìm + đo phần tử của bước hiện tại ───────────────────────────────────
+  // ── 5. Tìm phần tử của bước hiện tại ─────────────────────────────────
   //
-  // Quy trình:
-  //   1. Nếu step có `page` và ta đang ở route khác, gọi router.push tới
-  //      đó trước.
-  //   2. Poll DOM cho `step.selector` đến khi thấy hoặc hết thời gian.
-  //   3. Nếu vẫn không thấy → auto-skip theo `directionRef`.
-  //
-  // useLayoutEffect để đo trước khi paint (rect không bị flash).
+  // Logic:
+  //   a) Nếu phải đổi trang (step.page khác pathname hiện tại) → push
+  //      và quay lại sau khi pathname đổi. Giữ rect cũ để không nhấp
+  //      nháy spotlight.
+  //   b) Phần tử đã có trong DOM → đo ngay (synchronous, trong layout
+  //      effect nên không bị FOUC).
+  //   c) Chưa có → dùng MutationObserver bắt sự kiện DOM thay đổi thay
+  //      vì poll mỗi 100ms (mất CPU + thêm độ trễ).
   useLayoutEffect(() => {
-    if (active !== true) return;
+    if (phase !== "running") return;
     const step = steps[stepIndex];
     if (!step) return;
 
-    // Cần điều hướng trước? Nếu có thì đợi pathname đổi rồi mới đo.
+    // (a) cần đổi route trước
     if (step.page && pathname !== step.page) {
       router.push(step.page);
-      // Khi pathname đổi, effect này sẽ tự re-run; trong lúc chờ, ẩn rect
-      // để tooltip không nhảy giữa hai vị trí.
-      setRect(null);
-      return;
+      return; // effect sẽ chạy lại khi pathname đổi
     }
 
-    let cancelled = false;
-    const startedAt = performance.now();
-
-    function findAndMeasure() {
-      if (cancelled) return;
-      const el = document.querySelector<HTMLElement>(step.selector);
-      if (el) {
-        const r = el.getBoundingClientRect();
-        if (r.width > 0 && r.height > 0) {
-          setRect({
-            top: r.top - HIGHLIGHT_PADDING,
-            left: r.left - HIGHLIGHT_PADDING,
-            width: r.width + HIGHLIGHT_PADDING * 2,
-            height: r.height + HIGHLIGHT_PADDING * 2,
-          });
-          // Cuộn phần tử vào tầm nhìn (không lay sidebar — chỉ phần body)
-          if (!step.selector.startsWith("[data-tour-key=")) {
-            el.scrollIntoView({ behavior: "smooth", block: "center" });
-          }
-          return;
+    // (b) tìm ngay
+    const direct = document.querySelector<HTMLElement>(step.selector);
+    if (direct) {
+      const r = measureRect(direct);
+      if (r) {
+        setRect(r);
+        // Cuộn vào tầm nhìn cho các phần tử in-page, không cuộn cho
+        // sidebar (sẽ làm sidebar tự kéo theo trông xấu).
+        if (!step.selector.startsWith("[data-tour-key=")) {
+          direct.scrollIntoView({ behavior: "smooth", block: "center" });
         }
-      }
-      if (performance.now() - startedAt > ELEMENT_WAIT_TIMEOUT_MS) {
-        // Hết kiên nhẫn — bỏ qua bước này theo hướng đang đi.
-        skipUnreachable();
         return;
       }
-      setTimeout(findAndMeasure, 100);
     }
 
-    findAndMeasure();
+    // (c) chờ qua MutationObserver
+    let resolved = false;
+    const obs = new MutationObserver(() => {
+      if (resolved) return;
+      const el = document.querySelector<HTMLElement>(step.selector);
+      if (!el) return;
+      const r = measureRect(el);
+      if (!r) return;
+      resolved = true;
+      obs.disconnect();
+      setRect(r);
+      if (!step.selector.startsWith("[data-tour-key=")) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    });
+    obs.observe(document.body, { childList: true, subtree: true });
+
+    const timeoutId = window.setTimeout(() => {
+      if (resolved) return;
+      resolved = true;
+      obs.disconnect();
+      skipUnreachable();
+    }, WAIT_TIMEOUT_MS);
 
     return () => {
-      cancelled = true;
+      resolved = true;
+      obs.disconnect();
+      clearTimeout(timeoutId);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active, stepIndex, pathname, viewport.w, viewport.h, steps]);
+  }, [phase, stepIndex, pathname, steps]);
 
-  // Bỏ qua bước hiện tại khi không tìm được phần tử — đi theo hướng cũ.
+  // Bỏ qua bước hiện tại — đi theo hướng cũ.
   const skipUnreachable = useCallback(() => {
     if (directionRef.current === "backward") {
       if (stepIndex > 0) setStepIndex(stepIndex - 1);
@@ -337,9 +371,9 @@ export function SidebarTour() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [stepIndex, steps.length]);
 
-  // ── Phím tắt ─────────────────────────────────────────────────────────────
+  // ── 6. Phím tắt ──────────────────────────────────────────────────────
   useEffect(() => {
-    if (active !== true) return;
+    if (phase !== "running") return;
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") {
         e.preventDefault();
@@ -355,9 +389,9 @@ export function SidebarTour() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active, stepIndex]);
+  }, [phase, stepIndex]);
 
-  // ── Điều khiển ───────────────────────────────────────────────────────────
+  // ── 7. Điều khiển ────────────────────────────────────────────────────
 
   function finish() {
     try {
@@ -365,7 +399,7 @@ export function SidebarTour() {
     } catch {
       /* ignore */
     }
-    setActive(false);
+    setPhase("done");
   }
 
   function next() {
@@ -379,186 +413,160 @@ export function SidebarTour() {
     if (stepIndex > 0) setStepIndex(stepIndex - 1);
   }
 
-  if (active !== true || !rect) return null;
-  if (steps.length === 0) return null;
-
+  if (phase !== "running" || !rect || steps.length === 0) return null;
   const step = steps[stepIndex];
   if (!step) return null;
 
-  // ── Định vị tooltip ──────────────────────────────────────────────────────
+  // ── 8. Tooltip placement ─────────────────────────────────────────────
   //
-  // Ưu tiên đặt bên phải mục được làm nổi bật. Nếu không đủ chỗ (vd. mục
-  // nằm sát mép phải), thử đặt bên trái. Cuối cùng mới đặt xuống dưới.
-  const TOOLTIP_WIDTH = 340;
-  const TOOLTIP_EST_HEIGHT = 180;
+  // Ưu tiên đặt bên phải; hết chỗ thì sang trái; bí quá thì xuống dưới.
+  // Tính một lần per render, không cần useMemo cho phép tính rẻ này.
+  const TOOLTIP_W = 340;
+  const TOOLTIP_EST_H = 180;
   const GAP = 18;
 
   type Side = "right" | "left" | "bottom";
   let side: Side;
-  if (rect.left + rect.width + GAP + TOOLTIP_WIDTH < viewport.w - 16) {
-    side = "right";
-  } else if (rect.left - GAP - TOOLTIP_WIDTH > 16) {
-    side = "left";
-  } else {
-    side = "bottom";
-  }
+  if (rect.left + rect.width + GAP + TOOLTIP_W < vp.w - 16) side = "right";
+  else if (rect.left - GAP - TOOLTIP_W > 16) side = "left";
+  else side = "bottom";
 
-  let tooltipLeft: number;
-  let tooltipTop: number;
-  if (side === "right") {
-    tooltipLeft = rect.left + rect.width + GAP;
-    tooltipTop = Math.max(
-      16,
-      Math.min(
-        viewport.h - TOOLTIP_EST_HEIGHT - 16,
-        rect.top + rect.height / 2 - TOOLTIP_EST_HEIGHT / 2,
-      ),
-    );
-  } else if (side === "left") {
-    tooltipLeft = rect.left - GAP - TOOLTIP_WIDTH;
-    tooltipTop = Math.max(
-      16,
-      Math.min(
-        viewport.h - TOOLTIP_EST_HEIGHT - 16,
-        rect.top + rect.height / 2 - TOOLTIP_EST_HEIGHT / 2,
-      ),
-    );
-  } else {
-    tooltipLeft = Math.max(
-      16,
-      Math.min(viewport.w - TOOLTIP_WIDTH - 16, rect.left),
-    );
-    tooltipTop = rect.top + rect.height + GAP;
-  }
+  const tooltipPos =
+    side === "right"
+      ? {
+          left: rect.left + rect.width + GAP,
+          top: Math.max(
+            16,
+            Math.min(
+              vp.h - TOOLTIP_EST_H - 16,
+              rect.top + rect.height / 2 - TOOLTIP_EST_H / 2,
+            ),
+          ),
+        }
+      : side === "left"
+        ? {
+            left: rect.left - GAP - TOOLTIP_W,
+            top: Math.max(
+              16,
+              Math.min(
+                vp.h - TOOLTIP_EST_H - 16,
+                rect.top + rect.height / 2 - TOOLTIP_EST_H / 2,
+              ),
+            ),
+          }
+        : {
+            left: Math.max(16, Math.min(vp.w - TOOLTIP_W - 16, rect.left)),
+            top: rect.top + rect.height + GAP,
+          };
 
   return (
-    <AnimatePresence>
+    <div className="pointer-events-none fixed inset-0 z-[120]">
+      {/* Một motion duy nhất gánh cả 3 lớp hiệu ứng:
+          – Vùng tối phủ ngoài  (box-shadow lớn)
+          – Viền sáng           (box-shadow 1px indigo)
+          – Hào quang mờ        (box-shadow blur lớn)
+          Gộp vào một element vừa giảm số layer GPU vừa đảm bảo cả 3
+          luôn đồng bộ tuyệt đối khi animate. */}
       <motion.div
-        key="tour-root"
-        className="fixed inset-0 z-[120]"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.2 }}
+        aria-hidden
+        className="pointer-events-auto absolute rounded-xl"
+        initial={false}
+        animate={{
+          top: rect.top,
+          left: rect.left,
+          width: rect.width,
+          height: rect.height,
+        }}
+        transition={FAST}
+        style={{
+          boxShadow: [
+            "0 0 0 9999px rgba(15, 23, 42, 0.55)",
+            "0 0 0 1px rgba(99, 102, 241, 0.5)",
+            "0 0 24px 4px rgba(99, 102, 241, 0.45)",
+          ].join(", "),
+        }}
+        onClick={(e) => {
+          e.stopPropagation();
+          next();
+        }}
+      />
+
+      {/* Tooltip — element thứ hai, di chuyển bằng top/left (framer
+          chuyển sang transform internal để dùng GPU). */}
+      <motion.div
+        role="dialog"
+        aria-live="polite"
+        className="pointer-events-auto absolute rounded-2xl bg-white p-4 shadow-2xl ring-1 ring-slate-200"
+        initial={false}
+        animate={{ ...tooltipPos, width: TOOLTIP_W }}
+        transition={FAST}
       >
-        {/* Phủ tối — khoét sáng quanh phần tử hiện tại bằng box-shadow */}
-        <motion.div
-          aria-hidden
-          className="pointer-events-auto absolute rounded-xl"
-          initial={false}
-          animate={{
-            top: rect.top,
-            left: rect.left,
-            width: rect.width,
-            height: rect.height,
-          }}
-          transition={{ type: "spring", stiffness: 240, damping: 28 }}
-          style={{
-            boxShadow: "0 0 0 9999px rgba(15, 23, 42, 0.55)",
-          }}
-          onClick={(e) => {
-            e.stopPropagation();
-            next();
-          }}
-        />
+        {/* Mũi tên chỉ về phía phần tử được làm nổi bật */}
+        {side === "right" && (
+          <div
+            aria-hidden
+            className="absolute -left-1.5 top-1/2 h-3 w-3 -translate-y-1/2 rotate-45 bg-white ring-1 ring-slate-200"
+            style={{ clipPath: "polygon(0 0, 100% 100%, 0 100%)" }}
+          />
+        )}
+        {side === "left" && (
+          <div
+            aria-hidden
+            className="absolute -right-1.5 top-1/2 h-3 w-3 -translate-y-1/2 rotate-45 bg-white ring-1 ring-slate-200"
+            style={{ clipPath: "polygon(100% 0, 100% 100%, 0 0)" }}
+          />
+        )}
+        {side === "bottom" && (
+          <div
+            aria-hidden
+            className="absolute left-6 -top-1.5 h-3 w-3 rotate-45 bg-white ring-1 ring-slate-200"
+            style={{ clipPath: "polygon(0 0, 100% 0, 0 100%)" }}
+          />
+        )}
 
-        {/* Khung viền phát quang */}
-        <motion.div
-          layoutId="tour-spotlight-ring"
-          aria-hidden
-          className="pointer-events-none absolute rounded-xl ring-2 ring-indigo-400/90 ring-offset-2 ring-offset-transparent"
-          initial={false}
-          animate={{
-            top: rect.top,
-            left: rect.left,
-            width: rect.width,
-            height: rect.height,
-          }}
-          transition={{ type: "spring", stiffness: 240, damping: 28 }}
-          style={{
-            boxShadow:
-              "0 0 0 1px rgba(99,102,241,0.4), 0 0 24px 4px rgba(99,102,241,0.45)",
-          }}
-        />
-
-        {/* Hộp nội dung — trượt mượt giữa các bước nhờ layoutId */}
-        <motion.div
-          layoutId="tour-tooltip"
-          role="dialog"
-          aria-live="polite"
-          className="absolute rounded-2xl bg-white p-4 shadow-2xl ring-1 ring-slate-200"
-          initial={false}
-          animate={{ top: tooltipTop, left: tooltipLeft, width: TOOLTIP_WIDTH }}
-          transition={{ type: "spring", stiffness: 240, damping: 28 }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          {/* Mũi tên chỉ về phía phần tử */}
-          {side === "right" && (
-            <div
-              aria-hidden
-              className="absolute -left-1.5 top-1/2 h-3 w-3 -translate-y-1/2 rotate-45 bg-white ring-1 ring-slate-200"
-              style={{ clipPath: "polygon(0 0, 100% 100%, 0 100%)" }}
-            />
-          )}
-          {side === "left" && (
-            <div
-              aria-hidden
-              className="absolute -right-1.5 top-1/2 h-3 w-3 -translate-y-1/2 rotate-45 bg-white ring-1 ring-slate-200"
-              style={{ clipPath: "polygon(100% 0, 100% 100%, 0 0)" }}
-            />
-          )}
-          {side === "bottom" && (
-            <div
-              aria-hidden
-              className="absolute left-6 -top-1.5 h-3 w-3 rotate-45 bg-white ring-1 ring-slate-200"
-              style={{ clipPath: "polygon(0 0, 100% 0, 0 100%)" }}
-            />
-          )}
-
-          <div className="flex items-center justify-between gap-2">
-            <p className="font-mono text-[10.5px] font-semibold uppercase tracking-[0.18em] text-indigo-600">
-              Hướng dẫn nhanh
-            </p>
-            <span className="font-mono text-[10.5px] text-slate-400">
-              {stepIndex + 1} / {steps.length}
-            </span>
-          </div>
-
-          <h3 className="mt-1.5 text-base font-bold tracking-tight text-slate-900">
-            {step.title}
-          </h3>
-          <p className="mt-1 text-[13px] leading-relaxed text-slate-600">
-            {step.description}
+        <div className="flex items-center justify-between gap-2">
+          <p className="font-mono text-[10.5px] font-semibold uppercase tracking-[0.18em] text-indigo-600">
+            Hướng dẫn nhanh
           </p>
+          <span className="font-mono text-[10.5px] text-slate-400">
+            {stepIndex + 1} / {steps.length}
+          </span>
+        </div>
 
-          <div className="mt-4 flex items-center justify-between gap-2">
+        <h3 className="mt-1.5 text-base font-bold tracking-tight text-slate-900">
+          {step.title}
+        </h3>
+        <p className="mt-1 text-[13px] leading-relaxed text-slate-600">
+          {step.description}
+        </p>
+
+        <div className="mt-4 flex items-center justify-between gap-2">
+          <button
+            type="button"
+            onClick={finish}
+            className="text-xs font-medium text-slate-400 transition-colors hover:text-slate-600"
+          >
+            Bỏ qua hướng dẫn
+          </button>
+          <div className="flex items-center gap-1.5">
             <button
               type="button"
-              onClick={finish}
-              className="text-xs font-medium text-slate-400 transition-colors hover:text-slate-600"
+              onClick={prev}
+              disabled={stepIndex === 0}
+              className="rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
             >
-              Bỏ qua hướng dẫn
+              Quay lại
             </button>
-            <div className="flex items-center gap-1.5">
-              <button
-                type="button"
-                onClick={prev}
-                disabled={stepIndex === 0}
-                className="rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                Quay lại
-              </button>
-              <button
-                type="button"
-                onClick={next}
-                className="rounded-lg bg-slate-900 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm transition-opacity hover:opacity-90"
-              >
-                {stepIndex === steps.length - 1 ? "Hoàn tất" : "Tiếp theo"}
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={next}
+              className="rounded-lg bg-slate-900 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm transition-opacity hover:opacity-90"
+            >
+              {stepIndex === steps.length - 1 ? "Hoàn tất" : "Tiếp theo"}
+            </button>
           </div>
-        </motion.div>
+        </div>
       </motion.div>
-    </AnimatePresence>
+    </div>
   );
 }

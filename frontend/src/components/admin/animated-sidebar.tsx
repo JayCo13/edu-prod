@@ -58,7 +58,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Lịch dạy", href: "/dashboard/calendar", icon: Calendar, kinds: ["CENTER"] },
   // SCHOOL-only: fixed weekly Mon–Sat × period × teacher grid (PRD §5.5).
   // Generates exportable timetable; doesn't drive payroll.
-  { label: "Thời khoá biểu mẫu", href: "/dashboard/timetable", icon: CalendarDays, kinds: ["SCHOOL"] },
+  { label: "Thời khoá biểu", href: "/dashboard/timetable", icon: CalendarDays, kinds: ["SCHOOL"] },
   // Admin-managed catalog. CENTER uses it for class definitions; SCHOOL doesn't
   // need it (subjects live inside the timetable section).
   { label: "Khóa học", href: "/dashboard/courses", icon: BookOpen, kinds: ["CENTER"] },

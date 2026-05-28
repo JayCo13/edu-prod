@@ -267,7 +267,7 @@ function KindBadge({
     return (
       <span
         className={`inline-flex items-center gap-1 rounded-full bg-cyan-50 px-2 py-0.5 text-[10.5px] font-bold uppercase tracking-wide text-cyan-700 ring-1 ring-inset ring-cyan-100 ${className}`}
-        title="Tài khoản này dùng giao diện Trường học (Thời khoá biểu mẫu)"
+        title="Tài khoản này dùng giao diện Trường học (Thời khoá biểu)"
       >
         <School className="h-3 w-3" />
         Trường học

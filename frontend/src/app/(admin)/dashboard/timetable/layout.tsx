@@ -24,7 +24,7 @@ export default function TimetableLayout({ children }: { children: ReactNode }) {
         <>
           <header className="print:hidden" data-tkb-chrome="true">
             <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-              Thời khoá biểu mẫu
+              Thời khoá biểu
             </p>
             <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
               Sắp xếp thời khoá biểu

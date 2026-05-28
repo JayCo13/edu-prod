@@ -47,7 +47,7 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { label: "Lịch dạy", href: "/dashboard/calendar", icon: Calendar, kinds: ["CENTER"] },
-  { label: "Thời khoá biểu mẫu", href: "/dashboard/timetable", icon: CalendarDays, kinds: ["SCHOOL"] },
+  { label: "Thời khoá biểu", href: "/dashboard/timetable", icon: CalendarDays, kinds: ["SCHOOL"] },
   { label: "Khóa học", href: "/dashboard/courses", icon: BookOpen, kinds: ["CENTER"] },
   { label: "Giáo viên", href: "/dashboard/teachers", icon: UserCog },
   { label: "Bảng lương", href: "/admin/payroll", icon: Wallet, kinds: ["CENTER"] },

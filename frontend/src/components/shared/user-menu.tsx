@@ -52,7 +52,7 @@ const MENU_ITEMS: readonly MenuItem[] = [
   // SCHOOL-only: weekly timetable template (Day × Period × Teacher grid).
   {
     href: "/dashboard/timetable",
-    label: "Thời khoá biểu mẫu",
+    label: "Thời khoá biểu",
     sub: "Template tuần · in / QR cho học sinh",
     icon: LayoutGrid,
     accent: true,

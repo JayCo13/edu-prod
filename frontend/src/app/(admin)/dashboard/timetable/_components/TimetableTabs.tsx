@@ -45,6 +45,7 @@ export default function TimetableTabs() {
   return (
     <nav
       aria-label="Thời khoá biểu"
+      data-tour="tkb.tabs"
       // Grid-1-col on mobile (vertical stack), grid-4-cols sm+ so each tab
       // gets equal width and stretches to fill the container.
       className="grid grid-cols-1 gap-1 rounded-2xl border border-slate-200 bg-white p-1 shadow-sm sm:grid-cols-4"

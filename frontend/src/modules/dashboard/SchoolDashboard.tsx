@@ -179,6 +179,7 @@ export default async function SchoolDashboard({ userName }: Props) {
           icon={<LayoutGrid className="h-5 w-5" />}
           accent="cyan"
           showSeeMore
+          tourKey="dashboard.grade-breakdown"
         >
           {!data || data.gradeBreakdown.length === 0 ? (
             <EmptyState

@@ -78,7 +78,10 @@ export default async function PayrollListPage() {
           </p>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div
+          data-tour="payroll.periods-list"
+          className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
+        >
           <table className="min-w-full divide-y divide-slate-200">
             <thead className="bg-slate-50">
               <tr>

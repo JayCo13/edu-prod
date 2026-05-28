@@ -1,76 +1,151 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 
 // ── Cấu hình tour ───────────────────────────────────────────────────────────
 //
-// Mỗi bước trỏ vào một mục trong sidebar (qua `data-tour-key=<href>`) và đi
-// kèm một đoạn mô tả ngắn. Sidebar tự ẩn các mục không phù hợp theo vai
-// trò / loại trung tâm — tour chỉ hiển thị các bước có sidebar item tương
-// ứng đang nằm trong DOM, các bước khác tự bỏ qua.
+// Tour đi theo 2 lớp: trỏ vào mục trong thanh bên (sidebar), rồi đi sâu vào
+// các tính năng bên trong từng mục. Mỗi bước nói rõ:
+//   • `selector`  — CSS selector tới phần tử cần làm nổi bật
+//   • `page`      — (tuỳ chọn) route phải đang ở; nếu không thì tour tự
+//                   điều hướng sang bằng router.push()
+//
+// Khi đến bước nào mà phần tử không có trong DOM (mục bị ẩn theo vai trò /
+// loại trung tâm, hoặc chưa render xong), tour tự nhảy bước theo hướng đi
+// hiện tại — đi tiếp khi user bấm Tiếp, lùi lại khi user bấm Quay lại.
 
 interface TourStep {
-  key: string; // khớp với href của mục sidebar
+  selector: string;
+  page?: string;
   title: string;
   description: string;
 }
 
 const STEPS: TourStep[] = [
+  // ── Trang chủ ──────────────────────────────────────────────────────────
   {
-    key: "/dashboard",
+    selector: '[data-tour-key="/dashboard"]',
+    page: "/dashboard",
     title: "Trang chủ quản trị",
     description:
-      "Đây là nơi bạn bắt đầu mỗi ngày — xem nhanh các con số quan trọng của trung tâm.",
+      "Đây là nơi bạn bắt đầu mỗi ngày. Bên dưới là các ô tổng hợp nhanh.",
   },
   {
-    key: "/dashboard/calendar",
+    selector: '[data-tour="dashboard.today"]',
+    page: "/dashboard",
+    title: "Buổi học hôm nay",
+    description:
+      "Danh sách các buổi đang diễn ra trong ngày — giáo viên, giờ bắt đầu và trạng thái.",
+  },
+  {
+    selector: '[data-tour="dashboard.todo"]',
+    page: "/dashboard",
+    title: "Việc cần làm",
+    description:
+      "Các việc còn tồn đọng: giáo viên chưa cấu hình lương, kỳ lương chưa duyệt, hoá đơn chưa thanh toán.",
+  },
+  {
+    selector: '[data-tour="dashboard.finance"]',
+    page: "/dashboard",
+    title: "Tổng quan tài chính tháng này",
+    description:
+      "Tổng lương dự kiến, đã chi, số buổi đã / đang dạy — cập nhật tự động khi có thay đổi.",
+  },
+
+  // ── Lịch dạy ───────────────────────────────────────────────────────────
+  {
+    selector: '[data-tour-key="/dashboard/calendar"]',
+    page: "/dashboard/calendar",
     title: "Lịch dạy",
     description:
-      "Sắp xếp buổi học theo tuần hoặc tháng, hệ thống tự cảnh báo khi giáo viên trùng giờ.",
+      "Sắp xếp buổi học theo tuần hoặc tháng. Hệ thống tự cảnh báo khi giáo viên trùng giờ.",
   },
+
+  // ── Thời khoá biểu ─────────────────────────────────────────────────────
   {
-    key: "/dashboard/timetable",
+    selector: '[data-tour-key="/dashboard/timetable"]',
+    page: "/dashboard/timetable",
     title: "Thời khoá biểu",
     description:
-      "Xếp thời khoá biểu cho cả trường trên một bảng Thứ × Tiết, in hoặc chia sẻ mã QR cho học sinh.",
+      "Xếp thời khoá biểu cho cả trường trên một bảng Thứ × Tiết, sau đó in hoặc chia sẻ mã QR.",
   },
   {
-    key: "/dashboard/courses",
+    selector: '[data-tour="tkb.editor-link"]',
+    page: "/dashboard/timetable",
+    title: "Trang xếp lịch",
+    description:
+      "Bấm vào đây để mở trang chính — kéo thả môn vào ô, sao chép giữa các lớp, hoàn tác / làm lại.",
+  },
+
+  // ── Khóa học ───────────────────────────────────────────────────────────
+  {
+    selector: '[data-tour-key="/dashboard/courses"]',
+    page: "/dashboard/courses",
     title: "Khóa học",
     description:
-      "Khai báo các khóa học, gán giáo viên phụ trách — dùng làm khuôn để tạo buổi dạy.",
+      "Khai báo các khóa học và giáo viên phụ trách — dùng làm khuôn cho buổi dạy.",
   },
+
+  // ── Giáo viên ──────────────────────────────────────────────────────────
   {
-    key: "/dashboard/teachers",
+    selector: '[data-tour-key="/dashboard/teachers"]',
+    page: "/dashboard/teachers",
     title: "Giáo viên",
     description:
-      "Thêm tài khoản cho giáo viên, đặt mức lương và xem lịch sử giảng dạy của từng người.",
+      "Danh sách đội ngũ giáo viên của trung tâm. Bạn có thể thêm mới, đặt mức lương và xem lịch sử dạy.",
   },
   {
-    key: "/admin/payroll",
+    selector: '[data-tour="teachers.add"]',
+    page: "/dashboard/teachers",
+    title: "Thêm giáo viên mới",
+    description:
+      "Nhập email và mật khẩu tạm — giáo viên đổi mật khẩu trong vòng 24 giờ là dùng được tài khoản.",
+  },
+
+  // ── Bảng lương ─────────────────────────────────────────────────────────
+  {
+    selector: '[data-tour-key="/admin/payroll"]',
+    page: "/admin/payroll",
     title: "Bảng lương",
     description:
-      "Cuối tháng tạo kỳ lương, hệ thống tự tính dựa trên buổi đã dạy và xuất file Excel gửi kế toán.",
+      "Cuối tháng tạo kỳ lương, hệ thống tự tính theo buổi đã dạy và xuất file Excel cho kế toán.",
   },
   {
-    key: "/dashboard/payouts",
+    selector: '[data-tour="payroll.new-period"]',
+    page: "/admin/payroll",
+    title: "Tạo kỳ lương mới",
+    description:
+      "Chọn khoảng thời gian, hệ thống tự tổng hợp các buổi đã hoàn thành và tính số tiền cho từng giáo viên.",
+  },
+
+  // ── Nhận lương (giáo viên dùng) ────────────────────────────────────────
+  {
+    selector: '[data-tour-key="/dashboard/payouts"]',
+    page: "/dashboard/payouts",
     title: "Nhận lương",
     description:
-      "Khai báo cách bạn muốn nhận lương — chuyển khoản hoặc tiền mặt.",
+      "Khai báo cách giáo viên muốn nhận lương — chuyển khoản hoặc tiền mặt.",
   },
+
+  // ── Cài đặt ────────────────────────────────────────────────────────────
   {
-    key: "/admin/settings",
-    title: "Cài đặt",
+    selector: '[data-tour-key="/admin/settings"]',
+    page: "/admin/settings",
+    title: "Cài đặt trung tâm",
     description:
-      "Tên trung tâm, logo, ngày chốt lương và các thông số mặc định.",
+      "Tên trung tâm, logo, ngày chốt lương và các thông số mặc định khác.",
   },
 ];
 
-const STORAGE_KEY = "tour:admin:v1";
+const STORAGE_KEY = "tour:admin:v2";
 
-// Khoảng padding quanh ô được làm nổi bật (để khung sáng không sát mép).
 const HIGHLIGHT_PADDING = 6;
+
+// Khi đến một bước, nếu phần tử chưa có trong DOM (vd. trang đang load
+// sau khi router.push), poll lại mỗi 100ms tới giới hạn này.
+const ELEMENT_WAIT_TIMEOUT_MS = 3000;
 
 interface Rect {
   top: number;
@@ -79,35 +154,39 @@ interface Rect {
   height: number;
 }
 
+type Direction = "forward" | "backward";
+
 // ── Component ───────────────────────────────────────────────────────────────
 
 export function SidebarTour() {
-  // null = chưa kiểm tra localStorage (tránh nháy khi SSR);
-  // false = không hiện; true = đang chạy tour.
+  const router = useRouter();
+  const pathname = usePathname();
+
+  // null = chưa kiểm tra localStorage; false = không hiện; true = đang chạy.
   const [active, setActive] = useState<boolean | null>(null);
   const [stepIndex, setStepIndex] = useState(0);
   const [rect, setRect] = useState<Rect | null>(null);
   const [viewport, setViewport] = useState({ w: 0, h: 0 });
 
-  // Kiểm tra lần đầu — nếu chưa xem tour bao giờ thì bật.
-  // Đợi thêm 600ms cho sidebar render xong + animation entrance dừng lại,
-  // tránh việc đo vị trí khi item còn đang trượt vào.
+  // Hướng đi hiện tại — dùng cho logic auto-skip khi phần tử không có
+  // trong DOM. Ref để không kích hoạt re-render mỗi khi đổi hướng.
+  const directionRef = useRef<Direction>("forward");
+
+  // Bật tour lần đầu tiên — đợi 600ms cho sidebar render xong.
   useEffect(() => {
     try {
-      const seen = localStorage.getItem(STORAGE_KEY) === "1";
-      if (seen) {
+      if (localStorage.getItem(STORAGE_KEY) === "1") {
         setActive(false);
         return;
       }
     } catch {
-      // localStorage không dùng được — vẫn chạy tour cho phiên này.
+      /* localStorage không dùng được — vẫn chạy */
     }
     const t = setTimeout(() => setActive(true), 600);
     return () => clearTimeout(t);
   }, []);
 
-  // Cập nhật kích thước viewport — dùng để biết tour có chạy được không
-  // (ẩn trên mobile vì sidebar là dạng trượt từ trái, không phải fixed).
+  // Theo dõi kích thước viewport.
   useEffect(() => {
     function onResize() {
       setViewport({ w: window.innerWidth, h: window.innerHeight });
@@ -117,32 +196,88 @@ export function SidebarTour() {
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
-  // Tìm sidebar item của bước hiện tại; nếu DOM chưa có (mục đang ẩn theo
-  // vai trò) thì tự nhảy sang bước kế tiếp.
+  // Mobile bỏ qua tour (sidebar là drawer, không cố định để đo).
+  useEffect(() => {
+    if (active === true && viewport.w > 0 && viewport.w < 1024) {
+      finish();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active, viewport.w]);
+
+  // ── Tìm + đo phần tử của bước hiện tại ───────────────────────────────────
+  //
+  // Quy trình:
+  //   1. Nếu step có `page` và ta đang ở route khác, gọi router.push tới
+  //      đó trước.
+  //   2. Poll DOM cho `step.selector` đến khi thấy hoặc hết thời gian.
+  //   3. Nếu vẫn không thấy → auto-skip theo `directionRef`.
+  //
+  // useLayoutEffect để đo trước khi paint (rect không bị flash).
   useLayoutEffect(() => {
     if (active !== true) return;
     const step = STEPS[stepIndex];
     if (!step) return;
-    const el = document.querySelector<HTMLElement>(
-      `[data-tour-key="${step.key}"]`,
-    );
-    if (!el) {
-      // Mục không có trong sidebar hiện tại — bỏ qua bước này.
-      if (stepIndex < STEPS.length - 1) setStepIndex(stepIndex + 1);
-      else finish();
+
+    // Cần điều hướng trước? Nếu có thì đợi pathname đổi rồi mới đo.
+    if (step.page && pathname !== step.page) {
+      router.push(step.page);
+      // Khi pathname đổi, effect này sẽ tự re-run; trong lúc chờ, ẩn rect
+      // để tooltip không nhảy giữa hai vị trí.
+      setRect(null);
       return;
     }
-    const r = el.getBoundingClientRect();
-    setRect({
-      top: r.top - HIGHLIGHT_PADDING,
-      left: r.left - HIGHLIGHT_PADDING,
-      width: r.width + HIGHLIGHT_PADDING * 2,
-      height: r.height + HIGHLIGHT_PADDING * 2,
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active, stepIndex, viewport.w, viewport.h]);
 
-  // Phím tắt: Esc bỏ qua, Enter / Mũi tên phải đi tiếp.
+    let cancelled = false;
+    const startedAt = performance.now();
+
+    function findAndMeasure() {
+      if (cancelled) return;
+      const el = document.querySelector<HTMLElement>(step.selector);
+      if (el) {
+        const r = el.getBoundingClientRect();
+        if (r.width > 0 && r.height > 0) {
+          setRect({
+            top: r.top - HIGHLIGHT_PADDING,
+            left: r.left - HIGHLIGHT_PADDING,
+            width: r.width + HIGHLIGHT_PADDING * 2,
+            height: r.height + HIGHLIGHT_PADDING * 2,
+          });
+          // Cuộn phần tử vào tầm nhìn (không lay sidebar — chỉ phần body)
+          if (!step.selector.startsWith("[data-tour-key=")) {
+            el.scrollIntoView({ behavior: "smooth", block: "center" });
+          }
+          return;
+        }
+      }
+      if (performance.now() - startedAt > ELEMENT_WAIT_TIMEOUT_MS) {
+        // Hết kiên nhẫn — bỏ qua bước này theo hướng đang đi.
+        skipUnreachable();
+        return;
+      }
+      setTimeout(findAndMeasure, 100);
+    }
+
+    findAndMeasure();
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active, stepIndex, pathname, viewport.w, viewport.h]);
+
+  // Bỏ qua bước hiện tại khi không tìm được phần tử — đi theo hướng cũ.
+  const skipUnreachable = useCallback(() => {
+    if (directionRef.current === "backward") {
+      if (stepIndex > 0) setStepIndex(stepIndex - 1);
+      else finish();
+    } else {
+      if (stepIndex < STEPS.length - 1) setStepIndex(stepIndex + 1);
+      else finish();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stepIndex]);
+
+  // ── Phím tắt ─────────────────────────────────────────────────────────────
   useEffect(() => {
     if (active !== true) return;
     function onKey(e: KeyboardEvent) {
@@ -162,6 +297,8 @@ export function SidebarTour() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active, stepIndex]);
 
+  // ── Điều khiển ───────────────────────────────────────────────────────────
+
   function finish() {
     try {
       localStorage.setItem(STORAGE_KEY, "1");
@@ -172,39 +309,66 @@ export function SidebarTour() {
   }
 
   function next() {
+    directionRef.current = "forward";
     if (stepIndex < STEPS.length - 1) setStepIndex(stepIndex + 1);
     else finish();
   }
 
   function prev() {
+    directionRef.current = "backward";
     if (stepIndex > 0) setStepIndex(stepIndex - 1);
   }
-
-  // Tour chỉ chạy trên desktop (sidebar cố định, có thể đo vị trí).
-  // Dưới 1024px sidebar là drawer trượt — bỏ qua, đánh dấu seen luôn.
-  useEffect(() => {
-    if (active === true && viewport.w > 0 && viewport.w < 1024) {
-      finish();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active, viewport.w]);
 
   if (active !== true || !rect) return null;
 
   const step = STEPS[stepIndex];
   if (!step) return null;
 
-  // Vị trí tooltip — nằm bên phải sidebar item, căn giữa theo chiều dọc.
-  // Nếu không đủ chỗ bên phải (viewport hẹp) thì đặt xuống dưới.
-  const TOOLTIP_WIDTH = 320;
+  // ── Định vị tooltip ──────────────────────────────────────────────────────
+  //
+  // Ưu tiên đặt bên phải mục được làm nổi bật. Nếu không đủ chỗ (vd. mục
+  // nằm sát mép phải), thử đặt bên trái. Cuối cùng mới đặt xuống dưới.
+  const TOOLTIP_WIDTH = 340;
+  const TOOLTIP_EST_HEIGHT = 180;
   const GAP = 18;
-  const canPlaceRight = rect.left + rect.width + GAP + TOOLTIP_WIDTH < viewport.w;
-  const tooltipLeft = canPlaceRight
-    ? rect.left + rect.width + GAP
-    : Math.max(16, rect.left);
-  const tooltipTop = canPlaceRight
-    ? Math.max(16, rect.top + rect.height / 2 - 80)
-    : rect.top + rect.height + GAP;
+
+  type Side = "right" | "left" | "bottom";
+  let side: Side;
+  if (rect.left + rect.width + GAP + TOOLTIP_WIDTH < viewport.w - 16) {
+    side = "right";
+  } else if (rect.left - GAP - TOOLTIP_WIDTH > 16) {
+    side = "left";
+  } else {
+    side = "bottom";
+  }
+
+  let tooltipLeft: number;
+  let tooltipTop: number;
+  if (side === "right") {
+    tooltipLeft = rect.left + rect.width + GAP;
+    tooltipTop = Math.max(
+      16,
+      Math.min(
+        viewport.h - TOOLTIP_EST_HEIGHT - 16,
+        rect.top + rect.height / 2 - TOOLTIP_EST_HEIGHT / 2,
+      ),
+    );
+  } else if (side === "left") {
+    tooltipLeft = rect.left - GAP - TOOLTIP_WIDTH;
+    tooltipTop = Math.max(
+      16,
+      Math.min(
+        viewport.h - TOOLTIP_EST_HEIGHT - 16,
+        rect.top + rect.height / 2 - TOOLTIP_EST_HEIGHT / 2,
+      ),
+    );
+  } else {
+    tooltipLeft = Math.max(
+      16,
+      Math.min(viewport.w - TOOLTIP_WIDTH - 16, rect.left),
+    );
+    tooltipTop = rect.top + rect.height + GAP;
+  }
 
   return (
     <AnimatePresence>
@@ -216,8 +380,7 @@ export function SidebarTour() {
         exit={{ opacity: 0 }}
         transition={{ duration: 0.2 }}
       >
-        {/* Lớp tối phủ toàn màn hình, dùng box-shadow để "khoét" một ô
-            sáng quanh sidebar item hiện tại. */}
+        {/* Phủ tối — khoét sáng quanh phần tử hiện tại bằng box-shadow */}
         <motion.div
           aria-hidden
           className="pointer-events-auto absolute rounded-xl"
@@ -228,20 +391,17 @@ export function SidebarTour() {
             width: rect.width,
             height: rect.height,
           }}
-          transition={{ type: "spring", stiffness: 260, damping: 28 }}
+          transition={{ type: "spring", stiffness: 240, damping: 28 }}
           style={{
             boxShadow: "0 0 0 9999px rgba(15, 23, 42, 0.55)",
           }}
           onClick={(e) => {
-            // Click vào vùng tối thì đi tiếp. Click vào vùng sáng không
-            // làm gì để người dùng vẫn thấy chính cái item.
             e.stopPropagation();
             next();
           }}
         />
 
-        {/* Khung sáng phát quang quanh item — dùng layoutId để framer
-            tự lo phần animate khi đổi bước. */}
+        {/* Khung viền phát quang */}
         <motion.div
           layoutId="tour-spotlight-ring"
           aria-hidden
@@ -253,35 +413,44 @@ export function SidebarTour() {
             width: rect.width,
             height: rect.height,
           }}
-          transition={{ type: "spring", stiffness: 260, damping: 28 }}
+          transition={{ type: "spring", stiffness: 240, damping: 28 }}
           style={{
             boxShadow:
               "0 0 0 1px rgba(99,102,241,0.4), 0 0 24px 4px rgba(99,102,241,0.45)",
           }}
         />
 
-        {/* Tooltip nội dung — cũng dùng layoutId nên trượt theo cùng nhịp
-            với khung sáng giữa các bước. */}
+        {/* Hộp nội dung — trượt mượt giữa các bước nhờ layoutId */}
         <motion.div
           layoutId="tour-tooltip"
           role="dialog"
           aria-live="polite"
           className="absolute rounded-2xl bg-white p-4 shadow-2xl ring-1 ring-slate-200"
           initial={false}
-          animate={{
-            top: tooltipTop,
-            left: tooltipLeft,
-            width: TOOLTIP_WIDTH,
-          }}
-          transition={{ type: "spring", stiffness: 260, damping: 28 }}
+          animate={{ top: tooltipTop, left: tooltipLeft, width: TOOLTIP_WIDTH }}
+          transition={{ type: "spring", stiffness: 240, damping: 28 }}
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Mũi tên nhỏ chỉ về phía sidebar item — chỉ vẽ khi đặt bên phải */}
-          {canPlaceRight && (
+          {/* Mũi tên chỉ về phía phần tử */}
+          {side === "right" && (
             <div
               aria-hidden
               className="absolute -left-1.5 top-1/2 h-3 w-3 -translate-y-1/2 rotate-45 bg-white ring-1 ring-slate-200"
               style={{ clipPath: "polygon(0 0, 100% 100%, 0 100%)" }}
+            />
+          )}
+          {side === "left" && (
+            <div
+              aria-hidden
+              className="absolute -right-1.5 top-1/2 h-3 w-3 -translate-y-1/2 rotate-45 bg-white ring-1 ring-slate-200"
+              style={{ clipPath: "polygon(100% 0, 100% 100%, 0 0)" }}
+            />
+          )}
+          {side === "bottom" && (
+            <div
+              aria-hidden
+              className="absolute left-6 -top-1.5 h-3 w-3 rotate-45 bg-white ring-1 ring-slate-200"
+              style={{ clipPath: "polygon(0 0, 100% 0, 0 100%)" }}
             />
           )}
 

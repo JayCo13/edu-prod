@@ -86,6 +86,7 @@ export default async function AdminDashboard({ userName }: Props) {
           icon={<Calendar className="h-5 w-5" />}
           accent="indigo"
           showSeeMore
+          tourKey="dashboard.today"
         >
           {!data || data.todaySessions.length === 0 ? (
             <EmptyState
@@ -155,6 +156,7 @@ export default async function AdminDashboard({ userName }: Props) {
           title="Việc cần làm"
           icon={<ClipboardList className="h-5 w-5" />}
           accent="amber"
+          tourKey="dashboard.todo"
         >
           {!data ||
           (data.todo.teachersWithoutRate.length === 0 &&
@@ -213,6 +215,7 @@ export default async function AdminDashboard({ userName }: Props) {
           icon={<LineChart className="h-5 w-5" />}
           accent="emerald"
           showSeeMore
+          tourKey="dashboard.finance"
         >
           {!data ? (
             <EmptyState

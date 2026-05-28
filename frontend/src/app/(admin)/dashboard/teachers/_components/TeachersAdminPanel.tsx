@@ -369,6 +369,7 @@ export default function TeachersAdminPanel({
           <button
             type="button"
             onClick={openCreate}
+            data-tour="teachers.add"
             className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-opacity hover:opacity-90"
           >
             <Plus className="h-4 w-4" />

@@ -20,6 +20,9 @@ interface WidgetCardProps {
   accent?: "indigo" | "amber" | "emerald" | "rose" | "slate" | "cyan";
   /** Adds a "Xem chi tiết" CTA in the header. The href is omitted here — wire later. */
   showSeeMore?: boolean;
+  /** Tour anchor — emitted as `data-tour="<value>"` on the outer section so
+   *  the guided tour (sidebar-tour.tsx) can locate this card. */
+  tourKey?: string;
   children: ReactNode;
 }
 
@@ -47,6 +50,7 @@ export default function WidgetCard({
   icon,
   accent = "slate",
   showSeeMore = false,
+  tourKey,
   children,
 }: WidgetCardProps) {
   return (
@@ -55,6 +59,7 @@ export default function WidgetCard({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35, ease: "easeOut" as const }}
       className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6"
+      data-tour={tourKey}
     >
       <header className="flex items-start justify-between gap-3">
         <div className="flex items-start gap-3">

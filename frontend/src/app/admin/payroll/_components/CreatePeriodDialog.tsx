@@ -47,6 +47,7 @@ export default function CreatePeriodDialog() {
       <button
         type="button"
         onClick={() => setOpen(true)}
+        data-tour="payroll.new-period"
         className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-opacity hover:opacity-90"
       >
         <Plus className="h-4 w-4" />

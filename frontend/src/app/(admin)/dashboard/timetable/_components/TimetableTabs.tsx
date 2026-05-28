@@ -56,6 +56,11 @@ export default function TimetableTabs() {
           <Link
             key={tab.href}
             href={tab.href}
+            data-tour={
+              tab.href === "/dashboard/timetable/editor"
+                ? "tkb.editor-link"
+                : undefined
+            }
             className={`flex w-full items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors ${
               isActive
                 ? "bg-slate-900 text-white shadow-sm"

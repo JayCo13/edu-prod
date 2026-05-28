@@ -101,7 +101,7 @@ const ROUTE_TOURS: RouteTour[] = [
   // hai bước.
   {
     prefix: "/dashboard/teachers",
-    storageKey: "tour:teachers:v2",
+    storageKey: "tour:teachers:v3",
     steps: [
       {
         selector: '[data-tour="teachers.add"]',
@@ -172,7 +172,7 @@ const ROUTE_TOURS: RouteTour[] = [
   // thấy 3 bước "overview + todo + grade-breakdown".
   {
     prefix: "/dashboard",
-    storageKey: "tour:dashboard:v2",
+    storageKey: "tour:dashboard:v3",
     steps: [
       // ─ CENTER ─
       {
@@ -214,7 +214,10 @@ const ROUTE_TOURS: RouteTour[] = [
 ];
 
 const HIGHLIGHT_PADDING = 6;
-const WAIT_TIMEOUT_MS = 1500;
+// Đợi tối đa cho phần tử xuất hiện sau khi đổi trang. Đủ lâu để vượt qua
+// loading.tsx skeleton + dữ liệu server-rendered, nhưng đủ ngắn để
+// không treo tour mãi nếu trang thực sự không có anchor nào.
+const WAIT_TIMEOUT_MS = 4000;
 const FAST = { duration: 0.28, ease: [0.16, 1, 0.3, 1] as const };
 
 interface Rect {
@@ -269,27 +272,74 @@ export function SidebarTour() {
     setRect(null);
   }, [pathname]);
 
-  // Lọc bước theo selector có tồn tại trên trang hay không. Tránh trường
-  // hợp CENTER không có "dashboard.finance" — sẽ tự bỏ bước đó.
-  // Đo trong một useLayoutEffect riêng để đợi DOM render xong.
+  // Đợi DOM thực sự sẵn sàng rồi mới quét anchor.
+  //
+  // Trước: setTimeout 250ms cố định — bị lỗi khi trang có loading.tsx
+  // skeleton (skeleton render trước, anchor chưa xuất hiện) hoặc khi
+  // server-fetched data trả về chậm. Trang Giáo viên bị ảnh hưởng vì
+  // loading.tsx phủ toàn bộ vùng main, không có anchor nào.
+  //
+  // Giờ: MutationObserver theo dõi DOM tới khi có ít nhất một anchor
+  // của tour này xuất hiện với rect hợp lệ → quét toàn bộ. Có timeout
+  // an toàn (WAIT_TIMEOUT_MS) phòng trường hợp anchor không bao giờ có.
   const [availableSteps, setAvailableSteps] = useState<TourStep[] | null>(null);
-  useLayoutEffect(() => {
+  useEffect(() => {
     if (!tour) {
       setAvailableSteps([]);
       return;
     }
-    // Đợi ~250ms cho trang render thêm nội dung (vd. cards có animate-in)
-    // rồi mới quét. Tránh quét quá sớm — selector trên trang còn đang
-    // chờ skeleton.
-    const t = window.setTimeout(() => {
+    setAvailableSteps(null);
+
+    function scan(): TourStep[] {
       const present: TourStep[] = [];
-      for (const s of tour.steps) {
+      for (const s of tour!.steps) {
         const el = document.querySelector<HTMLElement>(s.selector);
         if (el && el.getBoundingClientRect().width > 0) present.push(s);
       }
-      setAvailableSteps(present);
-    }, 250);
-    return () => clearTimeout(t);
+      return present;
+    }
+
+    // Quét lần đầu — phần lớn các trang render kịp ngay.
+    const initial = scan();
+    if (initial.length > 0) {
+      setAvailableSteps(initial);
+      return;
+    }
+
+    // Chưa thấy anchor nào → theo dõi DOM thay đổi. Mỗi lần body có
+    // thay đổi (skeleton biến mất, server data trả về, motion entrance
+    // hoàn tất…) thì quét lại.
+    let resolved = false;
+    const obs = new MutationObserver(() => {
+      if (resolved) return;
+      const found = scan();
+      if (found.length > 0) {
+        resolved = true;
+        obs.disconnect();
+        setAvailableSteps(found);
+      }
+    });
+    obs.observe(document.body, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["data-tour"],
+    });
+
+    // Cuối cùng: nếu hết thời gian chờ vẫn không có anchor nào, chấp
+    // nhận danh sách rỗng → tour kết thúc nhẹ nhàng (không treo).
+    const timeoutId = window.setTimeout(() => {
+      if (resolved) return;
+      resolved = true;
+      obs.disconnect();
+      setAvailableSteps(scan());
+    }, WAIT_TIMEOUT_MS);
+
+    return () => {
+      resolved = true;
+      obs.disconnect();
+      clearTimeout(timeoutId);
+    };
   }, [tour, pathname]);
 
   // Quyết định bật / không bật khi đã có danh sách bước thực tế.
@@ -334,48 +384,96 @@ export function SidebarTour() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, vp.w]);
 
-  // Đo phần tử của bước hiện tại. Tất cả selector đều cùng route nên
-  // không cần navigate — chỉ cần đợi nếu phần tử đang re-render.
+  // Đo + theo dõi phần tử của bước hiện tại.
+  //
+  // Theo dõi 3 nguồn thay đổi vị trí:
+  //   1. ResizeObserver trên chính phần tử — bắt được khi nội dung của
+  //      phần tử mở rộng / co lại.
+  //   2. ResizeObserver trên <body> — bắt được khi layout xung quanh
+  //      đổi (sidebar collapse, viewport resize, font load…)
+  //   3. scroll event — chỉ cần re-measure top/left, không cần
+  //      observer; getBoundingClientRect trả vị trí theo viewport.
+  //
+  // Spotlight (position: fixed) cần toạ độ viewport-relative, nên scroll
+  // làm dịch chuyển và phải cập nhật.
   useLayoutEffect(() => {
     if (phase !== "running" || !availableSteps) return;
     const step = availableSteps[stepIndex];
     if (!step) return;
 
-    const direct = document.querySelector<HTMLElement>(step.selector);
-    if (direct) {
-      const r = measureRect(direct);
-      if (r) {
-        setRect(r);
-        direct.scrollIntoView({ behavior: "smooth", block: "center" });
-        return;
-      }
+    let currentEl: HTMLElement | null = null;
+    let raf = 0;
+
+    function measureAndSet(el: HTMLElement) {
+      const r = measureRect(el);
+      if (r) setRect(r);
     }
 
-    // Hiếm khi cần — chờ phần tử qua MutationObserver làm fallback.
-    let resolved = false;
-    const obs = new MutationObserver(() => {
-      if (resolved) return;
-      const el = document.querySelector<HTMLElement>(step.selector);
-      if (!el) return;
-      const r = measureRect(el);
-      if (!r) return;
-      resolved = true;
-      obs.disconnect();
-      setRect(r);
+    function scheduleMeasure() {
+      if (!currentEl) return;
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        if (currentEl) measureAndSet(currentEl);
+      });
+    }
+
+    const elObs = new ResizeObserver(scheduleMeasure);
+    const bodyObs = new ResizeObserver(scheduleMeasure);
+
+    function attach(el: HTMLElement) {
+      currentEl = el;
+      measureAndSet(el);
       el.scrollIntoView({ behavior: "smooth", block: "center" });
-    });
-    obs.observe(document.body, { childList: true, subtree: true });
-    const timeoutId = window.setTimeout(() => {
-      if (resolved) return;
-      resolved = true;
-      obs.disconnect();
-      // Phần tử bỗng biến mất — đi tiếp.
-      next();
-    }, WAIT_TIMEOUT_MS);
+      elObs.observe(el);
+      bodyObs.observe(document.body);
+      window.addEventListener("scroll", scheduleMeasure, { passive: true });
+      window.addEventListener("resize", scheduleMeasure, { passive: true });
+    }
+
+    const direct = document.querySelector<HTMLElement>(step.selector);
+    if (direct && direct.getBoundingClientRect().width > 0) {
+      attach(direct);
+    } else {
+      // Phần tử chưa có — chờ xuất hiện rồi attach.
+      let resolved = false;
+      const waitObs = new MutationObserver(() => {
+        if (resolved) return;
+        const el = document.querySelector<HTMLElement>(step.selector);
+        if (!el) return;
+        const r = el.getBoundingClientRect();
+        if (r.width <= 0) return;
+        resolved = true;
+        waitObs.disconnect();
+        attach(el);
+      });
+      waitObs.observe(document.body, { childList: true, subtree: true });
+
+      const timeoutId = window.setTimeout(() => {
+        if (resolved) return;
+        resolved = true;
+        waitObs.disconnect();
+        next();
+      }, WAIT_TIMEOUT_MS);
+
+      return () => {
+        resolved = true;
+        waitObs.disconnect();
+        clearTimeout(timeoutId);
+        elObs.disconnect();
+        bodyObs.disconnect();
+        window.removeEventListener("scroll", scheduleMeasure);
+        window.removeEventListener("resize", scheduleMeasure);
+        cancelAnimationFrame(raf);
+      };
+    }
+
     return () => {
-      resolved = true;
-      obs.disconnect();
-      clearTimeout(timeoutId);
+      currentEl = null;
+      elObs.disconnect();
+      bodyObs.disconnect();
+      window.removeEventListener("scroll", scheduleMeasure);
+      window.removeEventListener("resize", scheduleMeasure);
+      cancelAnimationFrame(raf);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, stepIndex, availableSteps]);

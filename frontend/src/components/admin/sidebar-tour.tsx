@@ -117,7 +117,7 @@ const ROUTE_TOURS: RouteTour[] = [
   // thấy 3 bước "overview + todo + grade-breakdown".
   {
     prefix: "/dashboard",
-    storageKey: "tour:dashboard:v3",
+    storageKey: "tour:dashboard:v4",
     steps: [
       // ─ CENTER ─
       {
@@ -163,11 +163,12 @@ const HIGHLIGHT_PADDING = 6;
 // loading.tsx skeleton + dữ liệu server-rendered, nhưng đủ ngắn để
 // không treo tour mãi nếu trang thực sự không có anchor nào.
 const WAIT_TIMEOUT_MS = 4000;
-// Sau khi anchor đầu tiên xuất hiện, đợi thêm một khoảng ngắn để các
-// motion entrance (WidgetCard fade-in, framer staggers) hoàn tất và
-// vị trí cuối cùng ổn định. Không có khoảng này tour có thể hiện ngay
-// khi card vẫn đang trượt vào, làm spotlight bám sai chỗ.
-const SETTLE_AFTER_FIRST_MS = 350;
+// Yêu cầu vị trí + opacity của các anchor không đổi trong N khung hình
+// liên tiếp trước khi cho tour hiển thị. Ở 60fps, 8 khung ≈ 130ms.
+const STABLE_FRAMES_TARGET = 8;
+// Khi tới ngưỡng này coi như anchor đã "hiển thị xong". Dưới mức này
+// (vd. WidgetCard đang fade từ 0 lên) thì coi như chưa sẵn sàng.
+const VISIBLE_OPACITY_MIN = 0.95;
 const FAST = { duration: 0.28, ease: [0.16, 1, 0.3, 1] as const };
 
 interface Rect {
@@ -240,42 +241,108 @@ export function SidebarTour() {
     }
     setAvailableSteps(null);
 
-    function scan(): TourStep[] {
-      const present: TourStep[] = [];
+    function scanElements(): HTMLElement[] {
+      const out: HTMLElement[] = [];
       for (const s of tour!.steps) {
         const el = document.querySelector<HTMLElement>(s.selector);
-        if (el && el.getBoundingClientRect().width > 0) present.push(s);
+        if (el && el.getBoundingClientRect().width > 0) out.push(el);
       }
-      return present;
+      return out;
+    }
+
+    function scanSteps(): TourStep[] {
+      const out: TourStep[] = [];
+      for (const s of tour!.steps) {
+        const el = document.querySelector<HTMLElement>(s.selector);
+        if (el && el.getBoundingClientRect().width > 0) out.push(s);
+      }
+      return out;
     }
 
     let resolved = false;
-    let settleId: ReturnType<typeof setTimeout> | null = null;
+    let rafId = 0;
     let timeoutId: ReturnType<typeof setTimeout> | null = null;
     let obs: MutationObserver | null = null;
 
-    // Khi đã phát hiện được ít nhất một anchor, vẫn đợi thêm một khoảng
-    // ngắn cho các anchor khác (vd. cards có entrance stagger) + cho
-    // motion ổn định xong, rồi mới quét lần cuối → đảm bảo rect đo
-    // đúng vị trí cuối cùng, không phải vị trí giữa animation.
-    function finalize() {
+    // Vòng kiểm tra ổn định layout: chờ tới khi mọi anchor có
+    //   • opacity ≥ VISIBLE_OPACITY_MIN (đã hiện rõ, không còn fade)
+    //   • vị trí + width không đổi liên tiếp STABLE_FRAMES_TARGET khung
+    // Sau đó mới setAvailableSteps để tour render.
+    //
+    // Cách này thay cho settle-delay cố định: trên trang nhanh thì
+    // chỉ mất ~130ms, trên trang chậm (motion entrance dài, dữ liệu
+    // server-fetch chậm) thì tự chờ tới khi thật sự xong.
+    function startStabilityCheck() {
       if (resolved) return;
-      resolved = true;
-      obs?.disconnect();
-      if (timeoutId) clearTimeout(timeoutId);
-      settleId = setTimeout(() => {
-        setAvailableSteps(scan());
-      }, SETTLE_AFTER_FIRST_MS);
+      type Snap = { top: number; left: number; width: number; opacity: number };
+      const last = new Map<HTMLElement, Snap>();
+      let stable = 0;
+
+      function tick() {
+        if (resolved) return;
+        const els = scanElements();
+        if (els.length === 0) {
+          // Hiếm: anchor biến mất giữa chừng. Tiếp tục thử.
+          rafId = requestAnimationFrame(tick);
+          return;
+        }
+
+        let allReady = true;
+        for (const el of els) {
+          const r = el.getBoundingClientRect();
+          const op = parseFloat(getComputedStyle(el).opacity);
+          const cur: Snap = {
+            top: r.top,
+            left: r.left,
+            width: r.width,
+            opacity: op,
+          };
+          const prev = last.get(el);
+          last.set(el, cur);
+          if (op < VISIBLE_OPACITY_MIN) {
+            allReady = false;
+            continue;
+          }
+          if (
+            !prev ||
+            Math.abs(prev.top - cur.top) > 0.5 ||
+            Math.abs(prev.left - cur.left) > 0.5 ||
+            Math.abs(prev.width - cur.width) > 0.5
+          ) {
+            allReady = false;
+          }
+        }
+
+        if (allReady) {
+          stable++;
+          if (stable >= STABLE_FRAMES_TARGET) {
+            resolved = true;
+            obs?.disconnect();
+            if (timeoutId) clearTimeout(timeoutId);
+            setAvailableSteps(scanSteps());
+            return;
+          }
+        } else {
+          stable = 0;
+        }
+        rafId = requestAnimationFrame(tick);
+      }
+
+      rafId = requestAnimationFrame(tick);
     }
 
-    // Quét lần đầu — phần lớn các trang render kịp ngay.
-    if (scan().length > 0) {
-      finalize();
+    // Có anchor ngay → bắt đầu kiểm tra ổn định.
+    if (scanElements().length > 0) {
+      startStabilityCheck();
     } else {
-      // Chưa thấy anchor → theo dõi DOM. Lần đầu thấy anchor → finalize().
+      // Chưa có anchor → theo dõi DOM. Khi anchor đầu xuất hiện thì
+      // chuyển sang vòng kiểm tra ổn định.
       obs = new MutationObserver(() => {
         if (resolved) return;
-        if (scan().length > 0) finalize();
+        if (scanElements().length > 0) {
+          obs?.disconnect();
+          startStabilityCheck();
+        }
       });
       obs.observe(document.body, {
         childList: true,
@@ -283,20 +350,22 @@ export function SidebarTour() {
         attributes: true,
         attributeFilter: ["data-tour"],
       });
-
-      // An toàn: hết thời gian chờ vẫn không có anchor → kết thúc nhẹ.
-      timeoutId = setTimeout(() => {
-        if (resolved) return;
-        resolved = true;
-        obs?.disconnect();
-        setAvailableSteps(scan());
-      }, WAIT_TIMEOUT_MS);
     }
+
+    // An toàn: nếu sau WAIT_TIMEOUT_MS vẫn chưa stable thì show với
+    // những gì đang có (tránh tour bị treo mãi).
+    timeoutId = setTimeout(() => {
+      if (resolved) return;
+      resolved = true;
+      obs?.disconnect();
+      cancelAnimationFrame(rafId);
+      setAvailableSteps(scanSteps());
+    }, WAIT_TIMEOUT_MS);
 
     return () => {
       resolved = true;
       obs?.disconnect();
-      if (settleId) clearTimeout(settleId);
+      cancelAnimationFrame(rafId);
       if (timeoutId) clearTimeout(timeoutId);
     };
   }, [tour, pathname]);

@@ -1,8 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
+
+import { getCurrentTenantContextForClient } from "@/app/actions/tenant-teachers";
 
 // ── Cấu hình tour ───────────────────────────────────────────────────────────
 //
@@ -11,16 +13,19 @@ import { motion, AnimatePresence } from "framer-motion";
 //   • `selector`  — CSS selector tới phần tử cần làm nổi bật
 //   • `page`      — (tuỳ chọn) route phải đang ở; nếu không thì tour tự
 //                   điều hướng sang bằng router.push()
-//
-// Khi đến bước nào mà phần tử không có trong DOM (mục bị ẩn theo vai trò /
-// loại trung tâm, hoặc chưa render xong), tour tự nhảy bước theo hướng đi
-// hiện tại — đi tiếp khi user bấm Tiếp, lùi lại khi user bấm Quay lại.
+//   • `kinds`     — chỉ chạy với loại trung tâm tương ứng (CENTER / SCHOOL).
+//                   Bỏ trống = áp dụng cho cả hai.
+//   • `hideForAdmin` — bỏ qua bước này nếu người dùng là quản trị viên.
+
+type TenantKind = "CENTER" | "SCHOOL";
 
 interface TourStep {
   selector: string;
   page?: string;
   title: string;
   description: string;
+  kinds?: readonly TenantKind[];
+  hideForAdmin?: boolean;
 }
 
 const STEPS: TourStep[] = [
@@ -38,6 +43,15 @@ const STEPS: TourStep[] = [
     title: "Buổi học hôm nay",
     description:
       "Danh sách các buổi đang diễn ra trong ngày — giáo viên, giờ bắt đầu và trạng thái.",
+    kinds: ["CENTER"],
+  },
+  {
+    selector: '[data-tour="dashboard.today"]',
+    page: "/dashboard",
+    title: "Tổng quan trường",
+    description:
+      "Số lớp, số giáo viên, số môn và mức độ hoàn thành thời khoá biểu của trường.",
+    kinds: ["SCHOOL"],
   },
   {
     selector: '[data-tour="dashboard.todo"]',
@@ -52,24 +66,27 @@ const STEPS: TourStep[] = [
     title: "Tổng quan tài chính tháng này",
     description:
       "Tổng lương dự kiến, đã chi, số buổi đã / đang dạy — cập nhật tự động khi có thay đổi.",
+    kinds: ["CENTER"],
   },
 
-  // ── Lịch dạy ───────────────────────────────────────────────────────────
+  // ── Lịch dạy (chỉ trung tâm) ───────────────────────────────────────────
   {
     selector: '[data-tour-key="/dashboard/calendar"]',
     page: "/dashboard/calendar",
     title: "Lịch dạy",
     description:
       "Sắp xếp buổi học theo tuần hoặc tháng. Hệ thống tự cảnh báo khi giáo viên trùng giờ.",
+    kinds: ["CENTER"],
   },
 
-  // ── Thời khoá biểu ─────────────────────────────────────────────────────
+  // ── Thời khoá biểu (chỉ trường) ────────────────────────────────────────
   {
     selector: '[data-tour-key="/dashboard/timetable"]',
     page: "/dashboard/timetable",
     title: "Thời khoá biểu",
     description:
       "Xếp thời khoá biểu cho cả trường trên một bảng Thứ × Tiết, sau đó in hoặc chia sẻ mã QR.",
+    kinds: ["SCHOOL"],
   },
   {
     selector: '[data-tour="tkb.editor-link"]',
@@ -77,24 +94,26 @@ const STEPS: TourStep[] = [
     title: "Trang xếp lịch",
     description:
       "Bấm vào đây để mở trang chính — kéo thả môn vào ô, sao chép giữa các lớp, hoàn tác / làm lại.",
+    kinds: ["SCHOOL"],
   },
 
-  // ── Khóa học ───────────────────────────────────────────────────────────
+  // ── Khóa học (chỉ trung tâm) ───────────────────────────────────────────
   {
     selector: '[data-tour-key="/dashboard/courses"]',
     page: "/dashboard/courses",
     title: "Khóa học",
     description:
       "Khai báo các khóa học và giáo viên phụ trách — dùng làm khuôn cho buổi dạy.",
+    kinds: ["CENTER"],
   },
 
-  // ── Giáo viên ──────────────────────────────────────────────────────────
+  // ── Giáo viên (cả hai) ─────────────────────────────────────────────────
   {
     selector: '[data-tour-key="/dashboard/teachers"]',
     page: "/dashboard/teachers",
     title: "Giáo viên",
     description:
-      "Danh sách đội ngũ giáo viên của trung tâm. Bạn có thể thêm mới, đặt mức lương và xem lịch sử dạy.",
+      "Danh sách đội ngũ giáo viên. Bạn có thể thêm mới, đặt mức lương và xem lịch sử dạy.",
   },
   {
     selector: '[data-tour="teachers.add"]',
@@ -104,13 +123,14 @@ const STEPS: TourStep[] = [
       "Nhập email và mật khẩu tạm — giáo viên đổi mật khẩu trong vòng 24 giờ là dùng được tài khoản.",
   },
 
-  // ── Bảng lương ─────────────────────────────────────────────────────────
+  // ── Bảng lương (chỉ trung tâm) ─────────────────────────────────────────
   {
     selector: '[data-tour-key="/admin/payroll"]',
     page: "/admin/payroll",
     title: "Bảng lương",
     description:
       "Cuối tháng tạo kỳ lương, hệ thống tự tính theo buổi đã dạy và xuất file Excel cho kế toán.",
+    kinds: ["CENTER"],
   },
   {
     selector: '[data-tour="payroll.new-period"]',
@@ -118,18 +138,21 @@ const STEPS: TourStep[] = [
     title: "Tạo kỳ lương mới",
     description:
       "Chọn khoảng thời gian, hệ thống tự tổng hợp các buổi đã hoàn thành và tính số tiền cho từng giáo viên.",
+    kinds: ["CENTER"],
   },
 
-  // ── Nhận lương (giáo viên dùng) ────────────────────────────────────────
+  // ── Nhận lương (chỉ giáo viên, không hiện cho admin) ───────────────────
   {
     selector: '[data-tour-key="/dashboard/payouts"]',
     page: "/dashboard/payouts",
     title: "Nhận lương",
     description:
       "Khai báo cách giáo viên muốn nhận lương — chuyển khoản hoặc tiền mặt.",
+    kinds: ["CENTER"],
+    hideForAdmin: true,
   },
 
-  // ── Cài đặt ────────────────────────────────────────────────────────────
+  // ── Cài đặt (cả hai) ───────────────────────────────────────────────────
   {
     selector: '[data-tour-key="/admin/settings"]',
     page: "/admin/settings",
@@ -139,7 +162,7 @@ const STEPS: TourStep[] = [
   },
 ];
 
-const STORAGE_KEY = "tour:admin:v2";
+const STORAGE_KEY = "tour:admin:v3";
 
 const HIGHLIGHT_PADDING = 6;
 
@@ -168,12 +191,49 @@ export function SidebarTour() {
   const [rect, setRect] = useState<Rect | null>(null);
   const [viewport, setViewport] = useState({ w: 0, h: 0 });
 
+  // Loại trung tâm + vai trò người dùng. null = đang chờ kết quả từ server.
+  // Phải lấy được trước khi quyết định danh sách bước nào áp dụng.
+  const [kind, setKind] = useState<TenantKind | null>(null);
+  const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
+
   // Hướng đi hiện tại — dùng cho logic auto-skip khi phần tử không có
   // trong DOM. Ref để không kích hoạt re-render mỗi khi đổi hướng.
   const directionRef = useRef<Direction>("forward");
 
-  // Bật tour lần đầu tiên — đợi 600ms cho sidebar render xong.
+  // Danh sách bước thực tế áp dụng cho người dùng này.
+  const steps = useMemo(() => {
+    if (kind === null || isAdmin === null) return [];
+    return STEPS.filter((s) => {
+      if (s.kinds && !s.kinds.includes(kind)) return false;
+      if (s.hideForAdmin && isAdmin) return false;
+      return true;
+    });
+  }, [kind, isAdmin]);
+
+  // Lấy context trung tâm (loại + vai trò) trước khi bật tour.
   useEffect(() => {
+    let cancelled = false;
+    getCurrentTenantContextForClient().then((r) => {
+      if (cancelled) return;
+      if (r.success && r.data) {
+        setKind(r.data.kind);
+        setIsAdmin(r.data.isAdmin);
+      } else {
+        // Không lấy được context — không chạy tour (tránh điều hướng lung
+        // tung). User vẫn có thể vào từng mục thủ công.
+        setActive(false);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Bật tour lần đầu — chỉ sau khi đã có context. Đợi thêm 600ms cho
+  // sidebar render xong rồi mới đo vị trí phần tử đầu tiên.
+  useEffect(() => {
+    if (kind === null || isAdmin === null) return;
+    if (active !== null) return; // đã quyết định rồi
     try {
       if (localStorage.getItem(STORAGE_KEY) === "1") {
         setActive(false);
@@ -184,7 +244,7 @@ export function SidebarTour() {
     }
     const t = setTimeout(() => setActive(true), 600);
     return () => clearTimeout(t);
-  }, []);
+  }, [kind, isAdmin, active]);
 
   // Theo dõi kích thước viewport.
   useEffect(() => {
@@ -215,7 +275,7 @@ export function SidebarTour() {
   // useLayoutEffect để đo trước khi paint (rect không bị flash).
   useLayoutEffect(() => {
     if (active !== true) return;
-    const step = STEPS[stepIndex];
+    const step = steps[stepIndex];
     if (!step) return;
 
     // Cần điều hướng trước? Nếu có thì đợi pathname đổi rồi mới đo.
@@ -263,7 +323,7 @@ export function SidebarTour() {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active, stepIndex, pathname, viewport.w, viewport.h]);
+  }, [active, stepIndex, pathname, viewport.w, viewport.h, steps]);
 
   // Bỏ qua bước hiện tại khi không tìm được phần tử — đi theo hướng cũ.
   const skipUnreachable = useCallback(() => {
@@ -271,11 +331,11 @@ export function SidebarTour() {
       if (stepIndex > 0) setStepIndex(stepIndex - 1);
       else finish();
     } else {
-      if (stepIndex < STEPS.length - 1) setStepIndex(stepIndex + 1);
+      if (stepIndex < steps.length - 1) setStepIndex(stepIndex + 1);
       else finish();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stepIndex]);
+  }, [stepIndex, steps.length]);
 
   // ── Phím tắt ─────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -310,7 +370,7 @@ export function SidebarTour() {
 
   function next() {
     directionRef.current = "forward";
-    if (stepIndex < STEPS.length - 1) setStepIndex(stepIndex + 1);
+    if (stepIndex < steps.length - 1) setStepIndex(stepIndex + 1);
     else finish();
   }
 
@@ -320,8 +380,9 @@ export function SidebarTour() {
   }
 
   if (active !== true || !rect) return null;
+  if (steps.length === 0) return null;
 
-  const step = STEPS[stepIndex];
+  const step = steps[stepIndex];
   if (!step) return null;
 
   // ── Định vị tooltip ──────────────────────────────────────────────────────
@@ -459,7 +520,7 @@ export function SidebarTour() {
               Hướng dẫn nhanh
             </p>
             <span className="font-mono text-[10.5px] text-slate-400">
-              {stepIndex + 1} / {STEPS.length}
+              {stepIndex + 1} / {steps.length}
             </span>
           </div>
 
@@ -492,7 +553,7 @@ export function SidebarTour() {
                 onClick={next}
                 className="rounded-lg bg-slate-900 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm transition-opacity hover:opacity-90"
               >
-                {stepIndex === STEPS.length - 1 ? "Hoàn tất" : "Tiếp theo"}
+                {stepIndex === steps.length - 1 ? "Hoàn tất" : "Tiếp theo"}
               </button>
             </div>
           </div>

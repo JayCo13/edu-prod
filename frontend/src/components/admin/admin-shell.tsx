@@ -7,7 +7,7 @@ import { SidebarProvider } from "@/components/admin/sidebar-context";
 import AnimatedSidebar from "@/components/admin/animated-sidebar";
 import MobileSidebar from "@/components/admin/mobile-sidebar";
 import TopNavbar from "@/components/admin/top-navbar";
-import { FeatureIntro } from "@/components/admin/feature-intro";
+import { SidebarTour } from "@/components/admin/sidebar-tour";
 import ToastProvider from "@/components/ui/toast-provider";
 import { ConfirmDialogProvider } from "@/components/ui/confirm-dialog";
 
@@ -42,11 +42,11 @@ export default function AdminShell({ children }: { children: ReactNode }) {
               initial="initial"
               animate="animate"
             >
-              <FeatureIntro />
               {children}
             </motion.main>
           </div>
         </div>
+        <SidebarTour />
         <ToastProvider />
       </ConfirmDialogProvider>
     </SidebarProvider>

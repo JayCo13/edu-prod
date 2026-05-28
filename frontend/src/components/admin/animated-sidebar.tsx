@@ -216,6 +216,7 @@ export default function AnimatedSidebar() {
             <motion.div key={item.href} variants={navItemVariants}>
               <Link
                 href={item.href}
+                data-tour-key={item.href}
                 className={`
                   group relative flex items-center gap-3 rounded-xl px-3 py-2.5
                   text-sm font-medium transition-colors duration-150

@@ -8,6 +8,7 @@ import {
   CalendarDays,
   Users,
   LayoutGrid,
+  LayoutDashboard,
   Building2,
   LogOut,
   ChevronDown,
@@ -32,6 +33,14 @@ type MenuItem = {
 };
 
 const MENU_ITEMS: readonly MenuItem[] = [
+  // Trang chủ quản trị — luôn ở đầu, là điểm đáp đầu tiên sau khi đăng
+  // nhập, cho cả CENTER lẫn SCHOOL.
+  {
+    href: "/dashboard",
+    label: "Trang chủ",
+    sub: "Tổng quan trung tâm · việc cần làm",
+    icon: LayoutDashboard,
+  },
   // CENTER-only: payroll is the killer feature for trung tâm dạy thêm.
   {
     href: "/admin/payroll",

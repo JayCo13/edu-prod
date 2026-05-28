@@ -60,36 +60,20 @@ const ROUTE_TOURS: RouteTour[] = [
     ],
   },
 
-  // ── Thời khoá biểu — trình soạn ─────────────────────────────────────────
-  {
-    prefix: "/dashboard/timetable/editor",
-    storageKey: "tour:timetable.editor:v1",
-    steps: [
-      {
-        selector: "main",
-        title: "Trang xếp thời khoá biểu",
-        description:
-          "Đây là bảng Thứ × Tiết của cả khối. Bấm vào ô trống để gán môn và giáo viên. Có chế độ quét nhanh và chọn nhiều ô cùng lúc để xếp nhanh hơn.",
-      },
-    ],
-  },
-
   // ── Thời khoá biểu — trang gốc ──────────────────────────────────────────
+  //
+  // Trang con `/editor` không có tour riêng — trang đó là vùng làm việc
+  // chính, người dùng tự khám phá khi đã quen. Chỉ giữ một bước duy nhất
+  // trên trang gốc, chỉ ngay đường đi tiếp theo.
   {
     prefix: "/dashboard/timetable",
-    storageKey: "tour:timetable:v1",
+    storageKey: "tour:timetable:v2",
     steps: [
       {
         selector: '[data-tour="tkb.tabs"]',
         title: "Quy trình xếp thời khoá biểu",
         description:
-          "Đi theo thứ tự: khai báo Lớp → Môn → Khung tiết → vào Trang xếp lịch để gán môn vào từng ô.",
-      },
-      {
-        selector: '[data-tour="tkb.editor-link"]',
-        title: "Trang xếp lịch",
-        description:
-          "Bấm vào đây để mở bảng Thứ × Tiết — nơi bạn xếp môn vào từng ô cho cả khối, sau đó in hoặc chia sẻ mã QR cho học sinh.",
+          "Khai báo Lớp → Môn → Khung tiết, rồi vào Trang xếp lịch để gán môn vào từng ô.",
       },
     ],
   },
@@ -118,47 +102,8 @@ const ROUTE_TOURS: RouteTour[] = [
     ],
   },
 
-  // ── Lịch dạy ───────────────────────────────────────────────────────────
-  {
-    prefix: "/dashboard/calendar",
-    storageKey: "tour:calendar:v1",
-    steps: [
-      {
-        selector: "main",
-        title: "Lịch dạy của trung tâm",
-        description:
-          "Xem lịch theo tuần hoặc tháng. Bấm vào ô trống để tạo buổi mới — hệ thống tự cảnh báo khi giáo viên hoặc phòng trùng giờ với buổi khác.",
-      },
-    ],
-  },
-
-  // ── Nhận lương (giáo viên dùng) ────────────────────────────────────────
-  {
-    prefix: "/dashboard/payouts",
-    storageKey: "tour:payouts:v1",
-    steps: [
-      {
-        selector: "main",
-        title: "Thông tin nhận lương",
-        description:
-          "Khai báo cách bạn muốn nhận lương: chuyển khoản ngân hàng (kèm số tài khoản) hoặc nhận tiền mặt. Quản trị viên sẽ thấy thông tin này khi chi lương.",
-      },
-    ],
-  },
-
-  // ── Khóa học ───────────────────────────────────────────────────────────
-  {
-    prefix: "/dashboard/courses",
-    storageKey: "tour:courses:v1",
-    steps: [
-      {
-        selector: "main",
-        title: "Danh mục khóa học",
-        description:
-          "Khai báo các khóa học của trung tâm — đặt tên, mô tả, số buổi, giáo viên phụ trách. Dùng làm khuôn để tạo buổi dạy ở mục Lịch dạy.",
-      },
-    ],
-  },
+  // Lịch dạy / Nhận lương / Khóa học không có tour riêng — các trang đó
+  // có UI tự giải thích, thêm tooltip 1-bước "main" chỉ làm nặng thị giác.
 
   // ── Trang chủ ──────────────────────────────────────────────────────────
   //
@@ -218,6 +163,11 @@ const HIGHLIGHT_PADDING = 6;
 // loading.tsx skeleton + dữ liệu server-rendered, nhưng đủ ngắn để
 // không treo tour mãi nếu trang thực sự không có anchor nào.
 const WAIT_TIMEOUT_MS = 4000;
+// Sau khi anchor đầu tiên xuất hiện, đợi thêm một khoảng ngắn để các
+// motion entrance (WidgetCard fade-in, framer staggers) hoàn tất và
+// vị trí cuối cùng ổn định. Không có khoảng này tour có thể hiện ngay
+// khi card vẫn đang trượt vào, làm spotlight bám sai chỗ.
+const SETTLE_AFTER_FIRST_MS = 350;
 const FAST = { duration: 0.28, ease: [0.16, 1, 0.3, 1] as const };
 
 interface Rect {
@@ -299,46 +249,55 @@ export function SidebarTour() {
       return present;
     }
 
-    // Quét lần đầu — phần lớn các trang render kịp ngay.
-    const initial = scan();
-    if (initial.length > 0) {
-      setAvailableSteps(initial);
-      return;
-    }
-
-    // Chưa thấy anchor nào → theo dõi DOM thay đổi. Mỗi lần body có
-    // thay đổi (skeleton biến mất, server data trả về, motion entrance
-    // hoàn tất…) thì quét lại.
     let resolved = false;
-    const obs = new MutationObserver(() => {
-      if (resolved) return;
-      const found = scan();
-      if (found.length > 0) {
-        resolved = true;
-        obs.disconnect();
-        setAvailableSteps(found);
-      }
-    });
-    obs.observe(document.body, {
-      childList: true,
-      subtree: true,
-      attributes: true,
-      attributeFilter: ["data-tour"],
-    });
+    let settleId: ReturnType<typeof setTimeout> | null = null;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    let obs: MutationObserver | null = null;
 
-    // Cuối cùng: nếu hết thời gian chờ vẫn không có anchor nào, chấp
-    // nhận danh sách rỗng → tour kết thúc nhẹ nhàng (không treo).
-    const timeoutId = window.setTimeout(() => {
+    // Khi đã phát hiện được ít nhất một anchor, vẫn đợi thêm một khoảng
+    // ngắn cho các anchor khác (vd. cards có entrance stagger) + cho
+    // motion ổn định xong, rồi mới quét lần cuối → đảm bảo rect đo
+    // đúng vị trí cuối cùng, không phải vị trí giữa animation.
+    function finalize() {
       if (resolved) return;
       resolved = true;
-      obs.disconnect();
-      setAvailableSteps(scan());
-    }, WAIT_TIMEOUT_MS);
+      obs?.disconnect();
+      if (timeoutId) clearTimeout(timeoutId);
+      settleId = setTimeout(() => {
+        setAvailableSteps(scan());
+      }, SETTLE_AFTER_FIRST_MS);
+    }
+
+    // Quét lần đầu — phần lớn các trang render kịp ngay.
+    if (scan().length > 0) {
+      finalize();
+    } else {
+      // Chưa thấy anchor → theo dõi DOM. Lần đầu thấy anchor → finalize().
+      obs = new MutationObserver(() => {
+        if (resolved) return;
+        if (scan().length > 0) finalize();
+      });
+      obs.observe(document.body, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ["data-tour"],
+      });
+
+      // An toàn: hết thời gian chờ vẫn không có anchor → kết thúc nhẹ.
+      timeoutId = setTimeout(() => {
+        if (resolved) return;
+        resolved = true;
+        obs?.disconnect();
+        setAvailableSteps(scan());
+      }, WAIT_TIMEOUT_MS);
+    }
 
     return () => {
       resolved = true;
-      obs.disconnect();
-      clearTimeout(timeoutId);
+      obs?.disconnect();
+      if (settleId) clearTimeout(settleId);
+      if (timeoutId) clearTimeout(timeoutId);
     };
   }, [tour, pathname]);
 

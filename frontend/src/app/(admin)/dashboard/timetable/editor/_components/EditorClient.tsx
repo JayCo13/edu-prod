@@ -28,12 +28,9 @@ import {
   ZoomIn,
 } from "lucide-react";
 
-import QRCode from "qrcode";
-
-import {
-  exportTkbToExcel,
-  downloadBlob,
-} from "@/modules/timetable/excel-export";
+// `qrcode` (~30KB) and the Excel exporter (which pulls `exceljs` ~600KB)
+// are only used on explicit user action — lazy-import them at the call
+// site instead of shipping with the initial editor bundle.
 import { getPublicTkbToken } from "@/modules/timetable/actions";
 import TimetableTabs from "@/app/(admin)/dashboard/timetable/_components/TimetableTabs";
 
@@ -529,6 +526,11 @@ export default function EditorClient({
   async function runExcelExport() {
     setExporting(true);
     try {
+      // Lazy-load the exporter — pulls in exceljs (~600KB) only when user
+      // clicks "Tải Excel".
+      const { exportTkbToExcel, downloadBlob } = await import(
+        "@/modules/timetable/excel-export"
+      );
       // Pass ALL periods — the exporter splits Sáng/Chiều into separate
       // worksheets in the same workbook so users always get a complete file.
       const blob = await exportTkbToExcel({
@@ -573,10 +575,12 @@ export default function EditorClient({
     setPdfDownloading(true);
     try {
       // Lazy-import the React-PDF document to keep the editor's main
-      // bundle slim. React-PDF + the bundled fonts adds ~500KB.
-      const { renderTkbPdfBlob } = await import(
-        "@/modules/timetable/TkbPdfDocument"
-      );
+      // bundle slim. React-PDF + the bundled fonts adds ~500KB. `downloadBlob`
+      // also lives behind the lazy-loaded excel-export module.
+      const [{ renderTkbPdfBlob }, { downloadBlob }] = await Promise.all([
+        import("@/modules/timetable/TkbPdfDocument"),
+        import("@/modules/timetable/excel-export"),
+      ]);
       const blob = await renderTkbPdfBlob({
         centerName,
         yearLabel,
@@ -599,13 +603,11 @@ export default function EditorClient({
       setPdfDownloading(false);
     }
   }
-  async function handleOpenQr() {
-    const ok = await confirm({
-      title: `Tạo QR · Khối ${selectedGrade}?`,
-      confirmLabel: "Tạo QR",
-      description: "Học sinh / phụ huynh quét xem TKB không cần đăng nhập.",
-    });
-    if (ok) setQrOpen(true);
+  // Mã QR đã tồn tại sẵn cho mỗi trung tâm (tenants.public_tkb_token, migration
+  // 0033) — không "tạo mới" mỗi lần. Click là mở ngay; nội dung TKB live nên
+  // không cần regenerate khi admin sửa lịch.
+  function handleOpenQr() {
+    setQrOpen(true);
   }
 
   // ── QR share ────────────────────────────────────────────────────────────
@@ -832,10 +834,10 @@ export default function EditorClient({
                 type="button"
                 onClick={handleOpenQr}
                 className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50"
-                title="Tạo mã QR cho học sinh xem TKB"
+                title="Mã QR chia sẻ — học sinh quét xem TKB (tự cập nhật khi sửa lịch)"
               >
                 <QrCode className="h-4 w-4" />
-                QR học sinh
+                Mã QR chia sẻ
               </button>
             </>
           )}
@@ -2086,17 +2088,20 @@ function QrShareModal({
 
   // Generate QR whenever the URL changes (grade switch) AND the modal is
   // open. Error correction "L" is fastest and is enough for a URL this
-  // short. Direct `import QRCode from "qrcode"` at module top so this is
-  // synchronous — no dynamic-import wait.
+  // short. `qrcode` is lazy-imported on first open so it doesn't ship
+  // with the editor's main bundle.
   useEffect(() => {
     if (!open || !publicUrl) return;
     let cancelled = false;
-    QRCode.toDataURL(publicUrl, {
-      width: 256,
-      margin: 1,
-      color: { dark: "#0F172A", light: "#FFFFFF" },
-      errorCorrectionLevel: "L",
-    })
+    import("qrcode")
+      .then(({ default: QRCode }) =>
+        QRCode.toDataURL(publicUrl, {
+          width: 256,
+          margin: 1,
+          color: { dark: "#0F172A", light: "#FFFFFF" },
+          errorCorrectionLevel: "L",
+        }),
+      )
       .then((url) => {
         if (!cancelled) setQrDataUrl(url);
       })
@@ -2143,10 +2148,10 @@ function QrShareModal({
             <div className="flex flex-shrink-0 items-start justify-between rounded-t-2xl border-b border-slate-100 px-5 py-3.5">
               <div>
                 <h2 className="text-base font-bold text-slate-900">
-                  QR cho học sinh
+                  Mã QR chia sẻ
                 </h2>
                 <p className="mt-0.5 text-xs text-slate-500">
-                  Khối {grade} · Sáng + Chiều
+                  {centerName} · Khối {grade} · Sáng + Chiều
                 </p>
               </div>
               <button
@@ -2213,13 +2218,18 @@ function QrShareModal({
                     </div>
                   )}
 
-                  <div className="rounded-xl bg-slate-50/70 px-3 py-2 text-[11.5px] leading-snug text-slate-600">
-                    Học sinh / phụ huynh quét QR là xem được TKB. Trang
-                    hiển thị đầy đủ{" "}
-                    <span className="font-semibold">
-                      sáng + chiều
-                    </span>{" "}
-                    khối <span className="font-semibold">{grade}</span>.
+                  <div className="space-y-2">
+                    <div className="rounded-xl bg-slate-50/70 px-3 py-2 text-[11.5px] leading-snug text-slate-600">
+                      Học sinh / phụ huynh quét QR là xem được TKB. Trang
+                      hiển thị đầy đủ{" "}
+                      <span className="font-semibold">sáng + chiều</span>{" "}
+                      khối <span className="font-semibold">{grade}</span>.
+                    </div>
+                    <div className="rounded-xl border border-emerald-200/70 bg-emerald-50/60 px-3 py-2 text-[11.5px] leading-snug text-emerald-800">
+                      <span className="font-semibold">Mã QR cố định.</span>{" "}
+                      Khi bạn sửa lịch, học sinh quét lại sẽ tự thấy phiên
+                      bản mới — <span className="font-semibold">không cần tạo lại</span>.
+                    </div>
                   </div>
                 </>
               )}

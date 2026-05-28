@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { Geist, IBM_Plex_Mono, Be_Vietnam_Pro } from "next/font/google";
 import { QueryProvider } from "@/lib/query-provider";
+import { RouteProgress } from "@/components/ui/route-progress";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -47,6 +49,9 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col bg-background text-foreground">
+        <Suspense fallback={null}>
+          <RouteProgress />
+        </Suspense>
         <QueryProvider>{children}</QueryProvider>
       </body>
     </html>

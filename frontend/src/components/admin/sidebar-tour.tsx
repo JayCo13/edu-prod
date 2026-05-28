@@ -60,20 +60,6 @@ const ROUTE_TOURS: RouteTour[] = [
     ],
   },
 
-  // ── Cài đặt ─────────────────────────────────────────────────────────────
-  {
-    prefix: "/admin/settings",
-    storageKey: "tour:settings:v1",
-    steps: [
-      {
-        selector: "main",
-        title: "Cài đặt trung tâm",
-        description:
-          "Tên trung tâm, logo, ngày chốt lương và các thông số mặc định khác — đặt một lần để dùng cho cả hệ thống.",
-      },
-    ],
-  },
-
   // ── Thời khoá biểu — trình soạn ─────────────────────────────────────────
   {
     prefix: "/dashboard/timetable/editor",
@@ -109,21 +95,25 @@ const ROUTE_TOURS: RouteTour[] = [
   },
 
   // ── Giáo viên ──────────────────────────────────────────────────────────
+  //
+  // Khi chưa có giáo viên nào, thanh lọc bị ẩn — tour tự còn lại đúng
+  // một bước (nút Thêm). Khi đã có ít nhất một giáo viên, tour có cả
+  // hai bước.
   {
     prefix: "/dashboard/teachers",
-    storageKey: "tour:teachers:v1",
+    storageKey: "tour:teachers:v2",
     steps: [
       {
         selector: '[data-tour="teachers.add"]',
         title: "Thêm giáo viên mới",
         description:
-          "Nhập email và mật khẩu tạm — giáo viên đổi mật khẩu trong vòng 24 giờ là vào được tài khoản. Sau đó bạn đặt mức lương cho từng người.",
+          "Nhập email và mật khẩu tạm cho giáo viên — họ có 24 giờ để đăng nhập và đổi mật khẩu là dùng được tài khoản. Sau khi tạo xong, bạn chọn cách tính lương (theo giờ, theo buổi, hoặc lương tháng cố định) ở trang chi tiết.",
       },
       {
         selector: '[data-tour="teachers.filters"]',
         title: "Lọc và tìm kiếm",
         description:
-          "Gõ tên (không cần dấu cũng tìm được) hoặc lọc theo trạng thái / vai trò để nhanh chóng tìm đúng giáo viên cần xem.",
+          "Gõ tên (không cần dấu — “nguyen” cũng tìm ra “Nguyễn”) hoặc lọc theo trạng thái và vai trò. Khu này chỉ hiện khi đã có giáo viên trong danh sách.",
       },
     ],
   },
@@ -175,38 +165,49 @@ const ROUTE_TOURS: RouteTour[] = [
   // Để cuối cùng vì prefix "/dashboard" trùng với rất nhiều route con —
   // pickTour() chọn match dài nhất nên các route con kể trên sẽ ưu tiên
   // tour của mình thay vì rơi vào tour Trang chủ này.
+  //
+  // Mỗi bước có selector riêng cho từng loại trung tâm (CENTER / SCHOOL).
+  // Khi chạy, danh sách bước được lọc theo selector nào thực sự có trên
+  // DOM, nên CENTER chỉ thấy 3 bước "today + todo + finance", SCHOOL chỉ
+  // thấy 3 bước "overview + todo + grade-breakdown".
   {
     prefix: "/dashboard",
-    storageKey: "tour:dashboard:v1",
+    storageKey: "tour:dashboard:v2",
     steps: [
-      // CENTER
+      // ─ CENTER ─
       {
-        selector: '[data-tour="dashboard.today"]',
+        selector: '[data-tour="dashboard.center.today"]',
         title: "Buổi học hôm nay",
         description:
           "Danh sách các buổi diễn ra trong ngày — giáo viên, giờ bắt đầu, trạng thái. Buổi bị huỷ được gạch ngang để dễ phân biệt.",
       },
+      // ─ SCHOOL ─
+      {
+        selector: '[data-tour="dashboard.school.overview"]',
+        title: "Tổng quan trường",
+        description:
+          "Số lớp, số giáo viên, số môn, số khung tiết — và quan trọng nhất là thanh tiến độ cho biết bạn đã xếp được bao nhiêu % thời khoá biểu của trường.",
+      },
+      // ─ Cả hai ─
       {
         selector: '[data-tour="dashboard.todo"]',
         title: "Việc cần làm",
         description:
-          "Các việc còn tồn đọng: giáo viên chưa cấu hình lương, kỳ lương chưa duyệt, kỳ lương đã duyệt nhưng chưa chi. Bấm vào dòng tương ứng để đi thẳng tới trang cần xử lý.",
+          "Các việc còn tồn đọng — giáo viên chưa cấu hình lương, kỳ lương chưa duyệt, lớp chưa có giáo viên chủ nhiệm… Bấm vào dòng tương ứng để đi thẳng tới chỗ cần xử lý.",
       },
+      // ─ CENTER ─
       {
-        selector: '[data-tour="dashboard.finance"]',
-        title: "Tổng quan tài chính",
+        selector: '[data-tour="dashboard.center.finance"]',
+        title: "Tổng quan tài chính tháng này",
         description:
-          "Tổng lương dự kiến của tháng, số tiền đã chi, số buổi đã / đang dạy và số giáo viên hoạt động. Cập nhật tự động khi có thay đổi.",
+          "Tổng lương dự kiến, số tiền đã chi, số buổi đã / đang dạy và số giáo viên hoạt động. Cập nhật tự động mỗi khi có thay đổi.",
       },
-      // SCHOOL — các bước này dùng cùng selector với CENTER nhưng widget
-      // có nội dung khác. Nếu cả CENTER và SCHOOL cùng có selector
-      // "dashboard.today" thì bước này sẽ không cần hiện riêng. Đặt thêm
-      // bước cho widget chỉ-có-ở-SCHOOL.
+      // ─ SCHOOL ─
       {
         selector: '[data-tour="dashboard.grade-breakdown"]',
         title: "Thời khoá biểu theo khối",
         description:
-          "Tóm tắt tình trạng xếp lịch của từng khối (lớp, số tiết đã xếp, % có giáo viên chủ nhiệm). Bấm vào một khối để vào thẳng trang xếp lịch của khối đó.",
+          "Tóm tắt tình trạng xếp lịch của từng khối: số lớp, số tiết đã xếp, % có giáo viên chủ nhiệm. Bấm vào một khối để vào thẳng trang xếp lịch của khối đó.",
       },
     ],
   },

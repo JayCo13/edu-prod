@@ -57,7 +57,7 @@ export default async function SchoolDashboard({ userName }: Props) {
           title="Trường của bạn"
           icon={<School className="h-5 w-5" />}
           accent="indigo"
-          tourKey="dashboard.today"
+          tourKey="dashboard.school.overview"
         >
           {!data ? (
             <EmptyState

@@ -53,6 +53,10 @@ export interface StoredAdjustment {
   reason: string;
   created_at: string;
   created_by: string | null;
+  /** Khi adjustment được tự áp từ recurring_adjustments rule, field này
+   *  trỏ về `recurring_adjustments.id` để UI hiển thị badge "Định kỳ"
+   *  + admin biết không sửa trực tiếp, chỉ tắt rule. Null = thêm tay. */
+  recurring_rule_id?: string | null;
 }
 
 /** Mirrors public.payroll_items.payment_method enum (migration 0026). */

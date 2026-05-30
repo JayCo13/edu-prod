@@ -17,6 +17,11 @@ import {
 } from "@/modules/audit/service";
 import { calculatePayroll } from "./calculator";
 import * as repo from "./repository";
+import {
+  applyRecurringForPeriod,
+  decrementRemainingForApprovedPeriod,
+  ruleIdsAppliedInPeriod,
+} from "./recurring-adjustments";
 import type {
   PayrollItemRow,
   PayrollPeriodRow,
@@ -144,6 +149,20 @@ export async function createPayrollPeriod(input: {
 
     const rules = { ...DEFAULT_RULES, ...input.rules };
 
+    // Fetch recurring adjustments active cho kỳ này (group theo teacher_id).
+    // Fail-soft: nếu lỗi gì khi đọc bảng, vẫn cho tạo kỳ — admin có thể
+    // thêm manual sau. Audit log ghi lý do bỏ.
+    let recurringByTeacher = new Map<string, StoredAdjustment[]>();
+    try {
+      recurringByTeacher = await applyRecurringForPeriod(
+        supabase,
+        auth.centerId,
+        { start: input.period_start, end: input.period_end },
+      );
+    } catch (e) {
+      console.warn("[payroll] recurring fetch failed, skipping:", e);
+    }
+
     const items: PayrollItemRow[] = [];
     for (const snapshot of input.teachers) {
       const result = calculatePayroll({
@@ -165,14 +184,34 @@ export async function createPayrollPeriod(input: {
         rules,
       });
 
+      // Inject recurring adjustments (BONUS / DEDUCTION) cùng tầng với
+      // manual — không đụng `calculated_amount` (giữ là kết quả thuần
+      // của calculator). `final_amount` cộng/trừ recurring vào.
+      const recurringAdjs = recurringByTeacher.get(snapshot.id) ?? [];
+      const recurringBonus = recurringAdjs
+        .filter((a) => a.type === "BONUS")
+        .reduce((sum, a) => sum + a.amount, 0);
+      const recurringDeduction = recurringAdjs
+        .filter((a) => a.type === "DEDUCTION")
+        .reduce((sum, a) => sum + a.amount, 0);
+      const finalAmount =
+        result.final_amount + recurringBonus - recurringDeduction;
+
+      // Cộng vào breakdown.bonuses/deductions để audit hiển thị tổng đúng.
+      const breakdownWithRecurring = {
+        ...result.breakdown,
+        bonuses: result.breakdown.bonuses + recurringBonus,
+        deductions: result.breakdown.deductions + recurringDeduction,
+      };
+
       const row = await repo.upsertItem(supabase, {
         payroll_period_id: period.id,
         teacher_id: snapshot.id,
         teacher_snapshot: snapshot,
         calculated_amount: result.breakdown.calculated_amount,
-        final_amount: result.final_amount,
-        adjustments: [],
-        breakdown: result.breakdown,
+        final_amount: finalAmount,
+        adjustments: recurringAdjs,
+        breakdown: breakdownWithRecurring,
         audit_trail: result.audit_trail,
       });
       items.push(row);
@@ -380,6 +419,21 @@ export async function approvePeriod(
       approved_by: auth.userId,
       approved_at: new Date().toISOString(),
     });
+
+    // Decrement N_PERIODS_LEFT cho các recurring rule đã áp vào kỳ này.
+    // Chỉ làm lúc APPROVE — không lúc CREATE DRAFT (admin xóa draft thì
+    // count không bị mất).
+    try {
+      const itemsForRules = await repo.listItems(supabase, periodId);
+      const ruleIds = ruleIdsAppliedInPeriod(itemsForRules);
+      await decrementRemainingForApprovedPeriod(supabase, ruleIds);
+    } catch (e) {
+      // Decrement fail không nên block approve — log cảnh báo.
+      console.warn(
+        "[payroll] decrement recurring remaining_periods failed:",
+        e,
+      );
+    }
 
     await logAuditEntry({
       center_id: period.center_id,

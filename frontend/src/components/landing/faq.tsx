@@ -39,7 +39,7 @@ const ITEMS = [
   {
     q: "Sau khi hết giai đoạn dùng thử, phí tính thế nào?",
     a:
-      "Dự kiến tính theo số giáo viên hoạt động trong tháng (có ít nhất 1 buổi dạy đối với trung tâm, hoặc 1 tiết được xếp đối với trường). Slot không dùng = không tính phí. Chúng tôi sẽ thông báo trước ít nhất 30 ngày trước khi áp dụng phí, để bạn có thời gian cân nhắc.",
+      "Thu theo tháng. Trung tâm tính theo số giáo viên hoạt động (có ít nhất 1 buổi dạy trong tháng); trường học tính theo số lớp đang xếp lịch (có ít nhất 1 tiết được gán trong tháng). Slot / lớp không dùng = không tính phí. Chúng tôi sẽ thông báo mức giá cụ thể trước ít nhất 30 ngày trước khi áp dụng, để bạn có thời gian cân nhắc.",
   },
   {
     q: "Sản phẩm đã ổn định chưa?",

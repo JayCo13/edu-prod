@@ -42,11 +42,11 @@ const PLANS: PlanProps[] = [
   },
   {
     name: "Growth",
-    range: "≤ 50 giáo viên",
+    range: "≤ 50 giáo viên · ≤ 50 lớp",
     price: "Sẽ thông báo",
-    suffix: "trước ≥ 30 ngày khi tính phí",
+    suffix: "trả theo tháng",
     desc:
-      "Khi rời beta sẽ chuyển sang tính phí theo số giáo viên active. Báo trước ≥ 30 ngày.",
+      "Thu theo tháng. Trung tâm tính theo số giáo viên hoạt động; trường học tính theo số lớp đang xếp lịch. Sẽ báo giá cụ thể trước ≥ 30 ngày.",
     highlight: true,
     features: [
       "Mọi tính năng của gói Early access",
@@ -55,7 +55,7 @@ const PLANS: PlanProps[] = [
       "Nhật ký thay đổi cho điều chỉnh lương",
       "Nạp danh sách giáo viên / lớp / học sinh từ Excel",
     ],
-    cta: { label: "Đặt lịch demo 15 phút", href: "#demo" },
+    cta: { label: "Đăng ký nhận thông báo giá", href: "#feedback-form" },
   },
   {
     name: "Liên hệ",
@@ -93,9 +93,9 @@ export default function Pricing() {
             </span>
           </h2>
           <p className="mt-4 text-[15px] text-slate-600">
-            Khi kết thúc giai đoạn dùng thử sẽ chuyển sang tính phí theo số
-            giáo viên hoạt động. Chúng tôi sẽ báo trước ít nhất 30 ngày — bạn
-            không bị bất ngờ.
+            Khi kết thúc giai đoạn dùng thử sẽ chuyển sang thu theo tháng —
+            trung tâm tính theo số giáo viên hoạt động, trường học tính theo
+            số lớp đang xếp lịch. Báo trước ít nhất 30 ngày, không bị bất ngờ.
           </p>
         </div>
 
@@ -106,8 +106,9 @@ export default function Pricing() {
         </div>
 
         <p className="mt-8 text-center font-mono text-[11px] text-slate-400">
-          * Khái niệm &ldquo;giáo viên active&rdquo; = có ≥ 1 buổi dạy trong
-          tháng. Slot không dùng = không tính phí khi tới giai đoạn tính phí.
+          * Trung tâm: &ldquo;giáo viên hoạt động&rdquo; = có ít nhất 1 buổi
+          dạy trong tháng. Trường học: &ldquo;lớp đang xếp lịch&rdquo; = có
+          ít nhất 1 tiết được gán trong tháng. Slot không dùng = không tính phí.
         </p>
       </div>
     </section>

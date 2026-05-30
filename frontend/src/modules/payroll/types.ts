@@ -109,6 +109,34 @@ export interface PayrollRules {
   pay_on_cancel: Record<SessionCancelReason, boolean>;
 }
 
+/** Đơn vị tính lương — 1 dòng cho mỗi (teacher × session). Snapshot
+ *  vào payroll_items.breakdown để kỳ cũ không bao giờ phải re-resolve
+ *  rate_rules. Output của loadRateResolverInputs + matchRateRule. */
+export interface PaidUnit {
+  session_id: string;
+  /** Local YYYY-MM-DD trong tz của trung tâm. */
+  date: string;
+  /** Scheduled length tính bằng phút. */
+  scheduled_minutes: number;
+  /** Actual minutes (đã clamp + fallback theo completion_factor). */
+  actual_minutes: number;
+  /** Trạng thái buổi — dùng cho audit. CANCELLED + reason nhất định
+   *  vẫn có thể có actual_minutes > 0 (BY_CENTER vẫn trả). */
+  status: "COMPLETED" | "CANCELLED_PAID" | "SUBSTITUTED";
+  /** Tỷ lệ chia lương buổi này cho teacher (0–100). Co-teaching < 100. */
+  pay_share_pct: number;
+  /** Snapshot đầy đủ của rule đã match — không trỏ rule_id live. */
+  resolved_rate: {
+    rule_id: string | null;
+    rule_scope: "TEACHER_DEFAULT" | "COURSE" | "CLASS";
+    scope_id: string | null;
+    payment_structure: PaymentStructure;
+    hourly_rate: number;
+    per_session_rate: number | null;
+    fixed_monthly_amount: number | null;
+  };
+}
+
 export interface PayrollBreakdown {
   /** Total integer minutes the teacher was paid for (HOURLY component only). */
   hours_taught_minutes: number;
@@ -124,6 +152,10 @@ export interface PayrollBreakdown {
   automatic_penalties: number;
   /** Pre-adjustment, pre-clamp gross. */
   calculated_amount: number;
+  /** Khi engine chạy qua paid_units (rate_rules path): snapshot
+   *  toàn bộ đơn vị đã tính, cho phép render lại kỳ cũ mà không cần
+   *  re-resolve rate. Null = đi qua path cũ (single teacher rate). */
+  paid_units_snapshot?: PaidUnit[];
 }
 
 export type AuditEntryKind =

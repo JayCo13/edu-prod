@@ -367,3 +367,160 @@ export function calculatePayroll(input: PayrollInput): PayrollResult {
 export const PAYROLL_DEFAULTS = {
   hours_cap_multiplier: DEFAULT_OVERTIME_CAP_MULTIPLIER,
 } as const;
+
+// ─── NEW: calculatePayrollFromUnits — rate_rules + co-teaching path ──────
+//
+// Pure function. Mỗi PaidUnit đã mang sẵn rate riêng (resolved từ
+// rate_rules) + share % (co-teaching). Engine iterate units, áp dụng
+// 4 cấu trúc lương theo từng unit, tổng dồn.
+//
+// CO-TEACHING POLICY: share áp cho HOURLY + PER_SESSION. FIXED_MONTHLY
+// KHÔNG chia (lương cứng tháng không quy theo buổi) — toàn bộ phần
+// fixed_monthly_amount cộng đủ một lần dù co-teach nhiều người.
+
+import type { PaidUnit, Period as PaidPeriod } from "./types";
+
+export interface PayrollFromUnitsInput {
+  teacher_id: string;
+  paid_units: PaidUnit[];
+  adjustments: ManualAdjustment[];
+  period: PaidPeriod;
+  rules: PayrollRules;
+}
+
+export function calculatePayrollFromUnits(
+  input: PayrollFromUnitsInput,
+): PayrollResult {
+  const { teacher_id, paid_units, adjustments, period, rules } = input;
+
+  const audit: AuditEntry[] = [];
+  let sessionsPaid = 0;
+  let hoursMinutes = 0;
+  let hourlyPay = 0;
+  let perSessionPay = 0;
+  let fixedMonthlyPay = 0;
+  let automaticPenalties = 0;
+
+  // FIXED_MONTHLY chỉ cộng 1 lần per (teacher × rule). Track theo rule_id.
+  const fixedAppliedFor = new Set<string>();
+
+  for (const unit of paid_units) {
+    if (unit.pay_share_pct <= 0) continue;
+
+    const rate = unit.resolved_rate;
+    const share = unit.pay_share_pct / 100;
+    const minutes = unit.actual_minutes;
+
+    sessionsPaid += 1;
+    hoursMinutes += Math.round(minutes * share);
+
+    // HOURLY component
+    if (
+      rate.payment_structure === "HOURLY" ||
+      rate.payment_structure === "HYBRID"
+    ) {
+      const gross = Math.floor(
+        (minutes * rate.hourly_rate * share) / MINUTES_PER_HOUR,
+      );
+      hourlyPay += gross;
+      audit.push({
+        kind: share < 1 ? "CO_TEACHER_SPLIT" : "SESSION_PAY",
+        session_id: unit.session_id,
+        amount: gross,
+        reason:
+          share < 1
+            ? `Co-teach ${unit.pay_share_pct}% — ${minutes} phút × ${rate.hourly_rate}/h`
+            : `${minutes} phút × ${rate.hourly_rate}/h (rule: ${rate.rule_scope})`,
+      });
+    }
+
+    // PER_SESSION component
+    if (
+      (rate.payment_structure === "PER_SESSION" ||
+        rate.payment_structure === "HYBRID") &&
+      rate.per_session_rate !== null
+    ) {
+      const gross = Math.floor(rate.per_session_rate * share);
+      perSessionPay += gross;
+      audit.push({
+        kind: share < 1 ? "CO_TEACHER_SPLIT" : "SESSION_PAY",
+        session_id: unit.session_id,
+        amount: gross,
+        reason:
+          share < 1
+            ? `Co-teach ${unit.pay_share_pct}% — 1 buổi × ${rate.per_session_rate}`
+            : `1 buổi × ${rate.per_session_rate} (rule: ${rate.rule_scope})`,
+      });
+    }
+
+    // FIXED_MONTHLY — không chia theo share, chỉ cộng 1 lần per rule.
+    if (
+      (rate.payment_structure === "FIXED_MONTHLY" ||
+        rate.payment_structure === "HYBRID") &&
+      rate.fixed_monthly_amount !== null &&
+      rate.rule_id !== null &&
+      !fixedAppliedFor.has(rate.rule_id)
+    ) {
+      fixedAppliedFor.add(rate.rule_id);
+      fixedMonthlyPay += rate.fixed_monthly_amount;
+      audit.push({
+        kind: "FIXED_MONTHLY_PAY",
+        amount: rate.fixed_monthly_amount,
+        reason: `Lương tháng cố định (rule: ${rate.rule_scope}) — không chia theo co-teach`,
+      });
+    }
+  }
+
+  // Adjustments (cùng tầng như path cũ)
+  const bonuses = adjustments
+    .filter((a) => a.type === "BONUS")
+    .reduce((sum, a) => {
+      audit.push({
+        kind: "BONUS",
+        amount: a.amount,
+        reason: a.reason,
+      });
+      return sum + a.amount;
+    }, 0);
+  const deductions = adjustments
+    .filter((a) => a.type === "DEDUCTION")
+    .reduce((sum, a) => {
+      audit.push({
+        kind: "DEDUCTION",
+        amount: -a.amount,
+        reason: a.reason,
+      });
+      return sum + a.amount;
+    }, 0);
+
+  const grossPay = hourlyPay + perSessionPay + fixedMonthlyPay;
+  const calculatedAmount = grossPay - automaticPenalties;
+  let finalAmount = calculatedAmount + bonuses - deductions;
+  if (finalAmount < 0) {
+    audit.push({
+      kind: "NEGATIVE_CLAMP",
+      amount: -finalAmount,
+      reason: `Số tiền âm (${finalAmount}đ) → kẹp về 0`,
+    });
+    finalAmount = 0;
+  }
+
+  return {
+    teacher_id,
+    period,
+    breakdown: {
+      hours_taught_minutes: hoursMinutes,
+      sessions_paid: sessionsPaid,
+      hourly_pay: hourlyPay,
+      per_session_pay: perSessionPay,
+      fixed_monthly_pay: fixedMonthlyPay,
+      bonuses,
+      deductions,
+      automatic_penalties: automaticPenalties,
+      calculated_amount: calculatedAmount,
+      paid_units_snapshot: paid_units,
+    },
+    final_amount: finalAmount,
+    audit_trail: audit,
+  };
+}

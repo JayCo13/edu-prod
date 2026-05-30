@@ -1,25 +1,13 @@
 <!--
   Edura — Email Confirmation Template
   ========================================
-  Minimal, modern SaaS email template.
+  Paste this HTML into Supabase Dashboard → Authentication → Email
+  Templates → "Confirm signup". The {{ .ConfirmationURL }} variable
+  is auto-replaced by Supabase at send time.
 
-  HOW TO USE:
-  1. Go to Supabase Dashboard → Authentication → Email Templates
-  2. Select "Confirm signup"
-  3. Paste this HTML into the template body
-  4. The {{ .ConfirmationURL }} variable is auto-replaced by Supabase
-
-  RESEND SMTP SETUP:
-  1. Create a Resend account at https://resend.com
-  2. Verify your domain (e.g., edura.vn)
-  3. Go to Resend Dashboard → API Keys → Create a new key
-  4. In Supabase Dashboard → Settings → Authentication → SMTP Settings:
-     - Host:     smtp.resend.com
-     - Port:     465
-     - Username: resend
-     - Password: re_YOUR_API_KEY_HERE
-     - Sender:   Edura <noreply@edura.vn>
-  5. Save and test
+  The app's transactional emails (teacher invite, payout, etc.) go
+  out via Gmail SMTP through nodemailer — see frontend/src/lib/email/
+  sender.ts. Configure SMTP_* env vars in frontend/.env.local.
 -->
 
 <!DOCTYPE html>

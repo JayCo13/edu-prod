@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getCurrentTenantContext } from "@/lib/tenant-context-server";
+import { canUseGrade, getGradeQuota, type GradeQuota } from "@/modules/billing/limits";
 import type { ActionResult } from "@/types/database";
 import type {
   ClassRow,
@@ -69,6 +70,18 @@ export async function listClasses(): Promise<ActionResult<ClassRow[]>> {
     return { success: true, data: (data ?? []) as ClassRow[] };
   } catch (e) {
     return err(e);
+  }
+}
+
+// ── Freemium quota — số khối đã dùng / tối đa ──────────────────────────
+
+export async function getCurrentGradeQuota(): Promise<ActionResult<GradeQuota>> {
+  try {
+    const { supabase, tenant } = await getCurrentTenantContext();
+    const quota = await getGradeQuota(supabase, tenant.id);
+    return { success: true, data: quota };
+  } catch (e) {
+    return err<GradeQuota>(e);
   }
 }
 
@@ -153,6 +166,15 @@ export async function seedGradeClasses(
       return { success: false, error: parsed.error.issues[0].message };
     }
     const { grade_level, count, format, letter } = parsed.data;
+
+    // Freemium gate: chặn nếu khối này nằm ngoài quota của gói hiện tại.
+    {
+      const ctx = await getCurrentTenantContext();
+      const gate = await canUseGrade(ctx.supabase, ctx.tenant.id, grade_level);
+      if (!gate.allowed) {
+        return { success: false, error: gate.reason };
+      }
+    }
     // Fall back to the current academic year (e.g. "2026-2027") so bulk
     // creates never leave the column blank by accident. Manual single-add
     // still allows empty if the admin really wants it.
@@ -229,6 +251,20 @@ export async function createClass(
     if (!parsed.success) return { success: false, error: parsed.error.issues[0].message };
     const auth = await requireAdmin();
     if (!auth.ok) return { success: false, error: auth.error };
+
+    // Freemium gate: chỉ áp dụng khi lớp có khai báo grade_level (SCHOOL).
+    // Lớp không có grade_level (CENTER kind) không bị giới hạn.
+    if (parsed.data.grade_level != null) {
+      const gate = await canUseGrade(
+        auth.supabase,
+        auth.tenant.id,
+        parsed.data.grade_level,
+      );
+      if (!gate.allowed) {
+        return { success: false, error: gate.reason };
+      }
+    }
+
     const { data, error } = await auth.supabase
       .from("classes")
       .insert({

@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import TimetableTabs from "./_components/TimetableTabs";
+import GradeQuotaBanner from "./_components/GradeQuotaBanner";
 
 /**
  * /dashboard/timetable — sub-section for the school-timetable feature.
@@ -39,8 +40,13 @@ export default function TimetableLayout({ children }: { children: ReactNode }) {
           </div>
         </>
       )}
-      {/* Editor renders its own header + tabs in-flow so the export buttons
-          can sit next to the title and tabs appear below them. */}
+
+      {/* Banner quota khối — hiện ở cả editor và các tab khác. Tự ẩn khi
+          gói trả phí (unlimited). Đặt `data-tkb-chrome` để tour / print
+          ẩn được. */}
+      <div className="print:hidden" data-tkb-chrome="true">
+        <GradeQuotaBanner />
+      </div>
 
       <div>{children}</div>
     </div>

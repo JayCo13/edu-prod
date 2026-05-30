@@ -1,10 +1,10 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { Check, Loader2, Save } from "lucide-react";
 
 import { saveBillingInfo } from "@/modules/billing/actions";
-import type { BillingInfoRow } from "@/modules/billing/types";
+import type { BillType, BillingInfoRow } from "@/modules/billing/types";
 
 interface Props {
   initial: BillingInfoRow | null;
@@ -17,6 +17,12 @@ interface Props {
  */
 export default function BillingInfoForm({ initial }: Props) {
   const [state, action, pending] = useActionState(saveBillingInfo, null);
+
+  // Theo dõi lựa chọn ORG / INDIVIDUAL trực tiếp trong state để ẩn /
+  // hiện khu vực "Thông tin tổ chức". Mặc định ORG nếu chưa có dữ liệu.
+  const [billType, setBillType] = useState<BillType>(
+    initial?.bill_type ?? "ORG",
+  );
 
   return (
     <form action={action} className="space-y-5">
@@ -31,25 +37,27 @@ export default function BillingInfoForm({ initial }: Props) {
         <div className="mt-4 grid gap-2 sm:grid-cols-2">
           <BillTypeRadio
             value="ORG"
-            defaultChecked={initial?.bill_type !== "INDIVIDUAL"}
+            checked={billType === "ORG"}
+            onChange={setBillType}
             label="Tổ chức (có MST)"
             desc="Xuất hoá đơn cho trung tâm / trường — dùng để khấu trừ chi phí."
           />
           <BillTypeRadio
             value="INDIVIDUAL"
-            defaultChecked={initial?.bill_type === "INDIVIDUAL"}
+            checked={billType === "INDIVIDUAL"}
+            onChange={setBillType}
             label="Cá nhân"
             desc="Đơn giản hơn — không cần MST. Không khấu trừ chi phí được."
           />
         </div>
       </div>
 
-      {/* ORG-only fields. Luôn render để form trả về đủ field, nhưng
-          chỉ hiển thị khi bill_type=ORG. Validate phía server enforce
-          rằng nếu chọn ORG thì MST + tên công ty bắt buộc. */}
+      {/* ORG-only fields. Chỉ render khi chọn ORG. Khi chuyển sang
+          INDIVIDUAL, server tự xoá company_name + tax_code lúc upsert
+          nên dữ liệu cũ không bị mắc kẹt. */}
+      {billType === "ORG" && (
       <div
         className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
-        data-show-for="ORG"
       >
         <h3 className="text-base font-bold text-slate-900">
           Thông tin tổ chức
@@ -91,6 +99,7 @@ export default function BillingInfoForm({ initial }: Props) {
           </Field>
         </div>
       </div>
+      )}
 
       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <h3 className="text-base font-bold text-slate-900">
@@ -172,12 +181,14 @@ export default function BillingInfoForm({ initial }: Props) {
 
 function BillTypeRadio({
   value,
-  defaultChecked,
+  checked,
+  onChange,
   label,
   desc,
 }: {
-  value: "ORG" | "INDIVIDUAL";
-  defaultChecked: boolean;
+  value: BillType;
+  checked: boolean;
+  onChange: (v: BillType) => void;
   label: string;
   desc: string;
 }) {
@@ -187,7 +198,8 @@ function BillTypeRadio({
         type="radio"
         name="bill_type"
         value={value}
-        defaultChecked={defaultChecked}
+        checked={checked}
+        onChange={() => onChange(value)}
         className="peer sr-only"
       />
       <div className="rounded-xl border border-slate-200 bg-white p-4 transition-colors peer-checked:border-indigo-500 peer-checked:bg-indigo-50/60 peer-checked:ring-1 peer-checked:ring-indigo-500">

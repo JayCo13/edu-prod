@@ -27,6 +27,8 @@ import type { TeacherSessionRow } from "@/app/actions/live-sessions";
 import { updateLiveSession } from "@/app/actions/live-sessions";
 import type { TenantTeacherRow } from "@/types/database";
 
+import CoTeachingPicker from "./CoTeachingPicker";
+
 interface SessionDetailsDialogProps {
   session: TeacherSessionRow | null;
   onClose: () => void;
@@ -126,6 +128,7 @@ export default function SessionDetailsDialog({
   const router = useRouter();
   const [mode, setMode] = useState<"view" | "edit">("view");
   const [showCancelPicker, setShowCancelPicker] = useState(false);
+  const [showCoTeachPicker, setShowCoTeachPicker] = useState(false);
   const [isSaving, startSaveTransition] = useTransition();
 
   // Edit-mode form state, hydrated from `session` whenever it opens or changes.
@@ -537,6 +540,15 @@ export default function SessionDetailsDialog({
                   Khôi phục
                 </button>
               )}
+              {mode === "view" && canEdit && !session.is_cancelled && (
+                <button
+                  type="button"
+                  onClick={() => setShowCoTeachPicker(true)}
+                  className="ml-1 inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold text-slate-600 transition-colors hover:bg-slate-100"
+                >
+                  Co-teaching
+                </button>
+              )}
             </div>
             <div className="flex items-center gap-2">
               {mode === "view" ? (
@@ -663,6 +675,16 @@ export default function SessionDetailsDialog({
             </div>
           </motion.div>
         </motion.div>
+      )}
+
+      {/* Co-teaching picker — chỉ admin, chỉ buổi chưa huỷ */}
+      {showCoTeachPicker && session && canEdit && (
+        <CoTeachingPicker
+          sessionId={session.id}
+          teachers={teachers}
+          assignedTeacherId={session.teacher_id ?? ""}
+          onClose={() => setShowCoTeachPicker(false)}
+        />
       )}
     </AnimatePresence>
   );

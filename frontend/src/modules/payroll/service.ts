@@ -15,7 +15,10 @@ import {
   buildRequestMetadata,
   logAuditEntry,
 } from "@/modules/audit/service";
-import { calculatePayroll } from "./calculator";
+import { calculatePayroll, calculatePayrollFromUnits } from "./calculator";
+import { buildPaidUnits } from "./build-paid-units";
+import { loadRateResolverInputs } from "./rate-resolution";
+import { compareBreakdowns } from "./shadow-diff";
 import * as repo from "./repository";
 import {
   applyRecurringForPeriod,
@@ -157,6 +160,35 @@ export async function createPayrollPeriod(input: {
 
     const rules = { ...DEFAULT_RULES, ...input.rules };
 
+    // ── Engine mode (Migration 0038) ─────────────────────────────────
+    // Đọc payroll_engine_mode từ tenant. OLD = chỉ chạy path cũ.
+    // SHADOW = chạy cả 2, lưu OLD, log diff. NEW = chỉ chạy path mới.
+    const { data: tenantRow } = await supabase
+      .from("tenants")
+      .select("payroll_engine_mode")
+      .eq("id", auth.centerId)
+      .single();
+    const engineMode: "OLD" | "SHADOW" | "NEW" =
+      (tenantRow?.payroll_engine_mode as "OLD" | "SHADOW" | "NEW") ?? "OLD";
+
+    // Pre-fetch resolver inputs nếu cần chạy path mới.
+    let resolverInputs = null;
+    if (engineMode !== "OLD") {
+      try {
+        resolverInputs = await loadRateResolverInputs(
+          supabase,
+          auth.centerId,
+          input.sessions.map((s) => s.id),
+        );
+      } catch (e) {
+        // Lỗi resolve → fall back về OLD only. Log để admin debug.
+        console.warn(
+          "[payroll] rate resolver fetch failed, falling back to OLD path:",
+          e,
+        );
+      }
+    }
+
     // Fetch recurring adjustments active cho kỳ này (group theo teacher_id).
     // Fail-soft: nếu lỗi gì khi đọc bảng, vẫn cho tạo kỳ — admin có thể
     // thêm manual sau. Audit log ghi lý do bỏ.
@@ -173,24 +205,62 @@ export async function createPayrollPeriod(input: {
 
     const items: PayrollItemRow[] = [];
     for (const snapshot of input.teachers) {
-      const result = calculatePayroll({
-        teacher: {
-          id: snapshot.id,
-          payment_structure: snapshot.payment_structure,
-          hourly_rate: snapshot.hourly_rate,
-          per_session_rate: snapshot.per_session_rate,
-          fixed_monthly_amount: snapshot.fixed_monthly_amount,
-        },
-        sessions: input.sessions,
-        attendance: input.attendance ?? [],
-        adjustments: [],
-        period: {
-          start: input.period_start,
-          end: input.period_end,
-          timezone: "Asia/Ho_Chi_Minh",
-        },
-        rules,
-      });
+      // ── OLD path (luôn chạy trừ khi mode=NEW) ───────────────────────
+      const oldResult =
+        engineMode === "NEW"
+          ? null
+          : calculatePayroll({
+              teacher: {
+                id: snapshot.id,
+                payment_structure: snapshot.payment_structure,
+                hourly_rate: snapshot.hourly_rate,
+                per_session_rate: snapshot.per_session_rate,
+                fixed_monthly_amount: snapshot.fixed_monthly_amount,
+              },
+              sessions: input.sessions,
+              attendance: input.attendance ?? [],
+              adjustments: [],
+              period: {
+                start: input.period_start,
+                end: input.period_end,
+                timezone: "Asia/Ho_Chi_Minh",
+              },
+              rules,
+            });
+
+      // ── NEW path (chạy khi mode=SHADOW hoặc NEW) ───────────────────
+      const newResult =
+        engineMode !== "OLD" && resolverInputs
+          ? calculatePayrollFromUnits({
+              teacher_id: snapshot.id,
+              paid_units: buildPaidUnits({
+                teacher: snapshot,
+                sessions: input.sessions,
+                period: {
+                  start: input.period_start,
+                  end: input.period_end,
+                },
+                rules,
+                resolverInputs,
+              }),
+              adjustments: [],
+              period: {
+                start: input.period_start,
+                end: input.period_end,
+                timezone: "Asia/Ho_Chi_Minh",
+              },
+              rules,
+            })
+          : null;
+
+      // Engine "thắng" — quyết định cái lưu vào DB.
+      // OLD/SHADOW → dùng oldResult; NEW → dùng newResult.
+      const result =
+        engineMode === "NEW" && newResult ? newResult : (oldResult ?? newResult!);
+      if (!result) {
+        // Hiếm: cả hai null (mode=NEW nhưng resolver fail). Rất defensive.
+        return err("Không thể tính lương — engine không khả dụng.");
+      }
 
       // Inject recurring adjustments (BONUS / DEDUCTION) cùng tầng với
       // manual — không đụng `calculated_amount` (giữ là kết quả thuần
@@ -223,6 +293,27 @@ export async function createPayrollPeriod(input: {
         audit_trail: result.audit_trail,
       });
       items.push(row);
+
+      // ── SHADOW: log diff giữa 2 engine (không thay đổi kết quả lưu) ──
+      if (engineMode === "SHADOW" && oldResult && newResult) {
+        try {
+          const diff = compareBreakdowns(oldResult, newResult);
+          await supabase.from("payroll_engine_shadow_diffs").insert({
+            tenant_id: auth.centerId,
+            payroll_period_id: period.id,
+            payroll_item_id: row.id,
+            teacher_id: snapshot.id,
+            old_final_amount: oldResult.final_amount,
+            new_final_amount: newResult.final_amount,
+            old_breakdown: oldResult.breakdown,
+            new_breakdown: newResult.breakdown,
+            diff_summary: diff,
+          });
+        } catch (e) {
+          // Log thất bại không nên block tạo kỳ.
+          console.warn("[payroll] shadow diff log failed:", e);
+        }
+      }
     }
 
     return { success: true, data: { ...period, items } };

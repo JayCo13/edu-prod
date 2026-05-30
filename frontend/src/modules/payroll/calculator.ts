@@ -48,7 +48,7 @@ function inPeriod(s: Session, start: string, end: string): boolean {
 }
 
 /** Scheduled length in integer minutes. Wraps midnight if end < start. */
-function scheduledMinutes(s: Session): number {
+export function scheduledMinutes(s: Session): number {
   const [sh, sm] = s.start_time.split(":").map(Number);
   const [eh, em] = s.end_time.split(":").map(Number);
   const startMin = sh * MINUTES_PER_HOUR + sm;
@@ -72,7 +72,7 @@ function minutesBetween(fromIso: string, toIso: string): number {
  * `capped` flips so the audit trail can record HOURS_CAPPED when the
  * teacher stayed longer than the cap allows.
  */
-function resolveActualMinutes(
+export function resolveActualMinutes(
   s: Session,
   rules: PayrollRules,
 ): { minutes: number; capped: boolean; fellBack: boolean } {

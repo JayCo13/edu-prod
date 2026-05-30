@@ -11,10 +11,11 @@ export type AuditAction =
   | "payroll.adjustment.add"
   | "payroll.adjustment.remove"
   | "payroll.period.approve"
-  | "payroll.period.mark_paid";
+  | "payroll.period.mark_paid"
+  | "tenant.payroll_engine.change";
 
 /** Coarse entity bucket for the (entity_type, entity_id) index. */
-export type AuditEntityType = "payroll_period" | "payroll_item";
+export type AuditEntityType = "payroll_period" | "payroll_item" | "tenant";
 
 /** Strongly-typed metadata blob. Free-form JSONB at the DB; this is the union. */
 export interface AuditMetadata {

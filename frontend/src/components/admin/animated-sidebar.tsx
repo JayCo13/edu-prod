@@ -12,7 +12,6 @@ import {
   UserCog,
   Settings,
   ChevronsLeft,
-  GraduationCap,
   Wallet,
   Banknote,
 } from "lucide-react";
@@ -141,9 +140,14 @@ export default function AnimatedSidebar() {
     >
       {/* ── Brand ─────────────────────────────────────────── */}
       <div className="flex h-16 items-center border-b border-slate-100 px-5">
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-slate-900">
-          <GraduationCap className="h-4 w-4 text-white" />
-        </div>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/edura-logo.png"
+          alt="Edura"
+          width={140}
+          height={42}
+          className="h-9 w-auto"
+        />
       </div>
 
       {/* ── Navigation ────────────────────────────────────── */}

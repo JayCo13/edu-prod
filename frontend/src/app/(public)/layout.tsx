@@ -74,17 +74,19 @@ export default async function PublicLayout({
           <div className="flex items-center gap-3">
             <Link
               href="/"
-              className="group flex items-center gap-2.5 text-[16.5px] font-bold tracking-tight text-slate-900"
+              aria-label="Edura — trang chủ"
+              className="group flex items-center transition-transform hover:scale-[1.02]"
             >
-              <span
-                className="grid h-9 w-9 place-items-center rounded-[10px] text-[12px] font-black text-white shadow-[0_4px_12px_-2px_rgba(79,70,229,0.45)] ring-1 ring-inset ring-white/15 transition-transform group-hover:scale-[1.04]"
-                style={{
-                  background: `linear-gradient(135deg, ${ACCENT.from}, ${ACCENT.to})`,
-                }}
-              >
-                V
-              </span>
-              <span className="font-display">Edura</span>
+              {/* Logo Edura — file gồm icon + wordmark "edura" trong cùng
+                  một PNG, nên không cần thêm text bên cạnh. */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/edura-logo.png"
+                alt="Edura"
+                width={140}
+                height={42}
+                className="h-10 w-auto"
+              />
             </Link>
             <span className="hidden items-center gap-1.5 rounded-full border border-emerald-200/70 bg-emerald-50/70 px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-emerald-700 lg:inline-flex">
               <span className="relative flex h-1.5 w-1.5">

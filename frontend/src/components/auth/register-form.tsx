@@ -93,14 +93,15 @@ export default function RegisterForm() {
               Quiet white-on-white layout — no loud gradient. Hidden on
               mobile (form below has its own brand mark). */}
           <div className="hidden flex-col gap-6 bg-slate-50/40 p-10 lg:flex">
-            <Link
-              href="/"
-              className="inline-flex items-center gap-2.5 text-base font-bold tracking-tight text-slate-900"
-            >
-              <span className="grid h-10 w-10 place-items-center rounded-xl bg-slate-900 text-sm font-black text-white">
-                V
-              </span>
-              <span className="font-display">Edura</span>
+            <Link href="/" aria-label="Edura — trang chủ" className="inline-flex">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/edura-logo.png"
+                alt="Edura"
+                width={140}
+                height={42}
+                className="h-10 w-auto"
+              />
             </Link>
 
             <div>
@@ -154,12 +155,17 @@ export default function RegisterForm() {
               <div className="lg:hidden">
                 <Link
                   href="/"
-                  className="mb-4 inline-flex items-center gap-2.5 text-base font-bold tracking-tight text-slate-900"
+                  aria-label="Edura — trang chủ"
+                  className="mb-4 inline-flex"
                 >
-                  <span className="grid h-10 w-10 place-items-center rounded-xl bg-slate-900 text-sm font-black text-white">
-                    V
-                  </span>
-                  <span className="font-display">Edura</span>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src="/edura-logo.png"
+                    alt="Edura"
+                    width={140}
+                    height={42}
+                    className="h-10 w-auto"
+                  />
                 </Link>
               </div>
 

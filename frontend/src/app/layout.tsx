@@ -24,16 +24,24 @@ const beVietnamPro = Be_Vietnam_Pro({
 
 export const metadata: Metadata = {
   title: {
-    default: "Edura — White-label EdTech Platform",
+    default: "Edura — Quản lý trung tâm và trường học",
     template: "%s | Edura",
   },
   description:
-    "B2B SaaS White-label EdTech Platform — Build your own branded online learning experience.",
+    "Một nền tảng cho trung tâm dạy thêm (tính lương theo buổi, xuất Excel) và trường học (xếp thời khoá biểu cả khối trong một bảng).",
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"),
   openGraph: {
     type: "website",
-    locale: "en_US",
+    locale: "vi_VN",
     siteName: "Edura",
+    images: [
+      {
+        url: "/edura-logo.png",
+        width: 578,
+        height: 431,
+        alt: "Edura logo",
+      },
+    ],
   },
 };
 

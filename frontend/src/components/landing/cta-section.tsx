@@ -1,6 +1,7 @@
-import { ArrowRight, Send, Sparkles } from "lucide-react";
+import { Sparkles } from "lucide-react";
 
 import { ACCENT } from "./_accent";
+import FeedbackForm from "./feedback-form";
 
 /**
  * Final CTA — light-card variant with layered "premium" effects.
@@ -84,95 +85,17 @@ export default function CTASection() {
               </span>
             </h2>
             <p className="mt-5 max-w-lg text-[15.5px] leading-relaxed text-slate-600">
-              Sản phẩm đang trong giai đoạn dùng thử. Mỗi email góp ý từ trung
-              tâm và trường học — kể về chỗ rối, tính năng còn thiếu, hoặc đơn
-              giản là điều bạn thích — giúp chúng tôi biết nên ưu tiên xây gì
-              tiếp theo.
+              Sản phẩm đang trong giai đoạn dùng thử. Mỗi góp ý từ trung tâm và
+              trường học — kể về chỗ rối, tính năng còn thiếu, hoặc đơn giản
+              là điều bạn thích — giúp chúng tôi biết nên ưu tiên xây gì tiếp
+              theo.
             </p>
-            <div className="mt-8 flex flex-wrap items-center gap-4">
-              <a
-                href="mailto:hello@edura.vn?subject=G%C3%B3p%20%C3%BD%20Edura"
-                className="group inline-flex items-center gap-2 rounded-xl px-6 py-3.5 text-[14px] font-semibold text-white transition-transform hover:scale-[1.02] active:scale-[0.98]"
-                style={{
-                  background: A.solid,
-                  boxShadow: `0 12px 30px -8px ${A.shadow}`,
-                }}
-              >
-                Gửi email đóng góp
-                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-              </a>
-              <a
-                href="mailto:hello@edura.vn"
-                className="font-mono text-[13px] font-medium text-slate-500 transition-colors hover:text-slate-900"
-              >
-                hello@edura.vn →
-              </a>
-            </div>
           </div>
 
-          {/* Feedback email preview — mock của khung soạn email góp ý. */}
-          <div className="relative hidden lg:block">
-            <div
-              className="rounded-2xl border border-slate-200/80 bg-white p-5"
-              style={{
-                boxShadow: `0 12px 30px -10px ${A.shadow}, 0 0 0 1px ${A.tint}`,
-              }}
-            >
-              <div className="flex items-center justify-between">
-                <p
-                  className="font-mono text-[10px] font-semibold uppercase tracking-wide"
-                  style={{ color: A.solid }}
-                >
-                  · Email mới
-                </p>
-                <span className="font-mono text-[9px] uppercase tracking-wide text-slate-400">
-                  Bản xem trước
-                </span>
-              </div>
-              <div className="mt-3 space-y-2">
-                <div className="rounded-lg border border-slate-200/60 bg-slate-50/60 px-3 py-2">
-                  <p className="font-mono text-[9px] uppercase tracking-wide text-slate-400">
-                    Đến
-                  </p>
-                  <p className="mt-0.5 font-mono text-[12.5px] font-medium text-slate-700">
-                    hello@edura.vn
-                  </p>
-                </div>
-                <div className="rounded-lg border border-slate-200/60 bg-slate-50/60 px-3 py-2">
-                  <p className="font-mono text-[9px] uppercase tracking-wide text-slate-400">
-                    Chủ đề
-                  </p>
-                  <p className="mt-0.5 text-[12.5px] font-medium text-slate-700">
-                    Góp ý về tính năng xếp thời khoá biểu
-                  </p>
-                </div>
-                <div className="rounded-lg border border-slate-200/60 bg-slate-50/60 px-3 py-2">
-                  <p className="font-mono text-[9px] uppercase tracking-wide text-slate-400">
-                    Nội dung
-                  </p>
-                  <p className="mt-0.5 text-[12.5px] leading-relaxed text-slate-600">
-                    Mình thấy phần xếp lịch nên có thêm chế độ in theo lớp
-                    để phát cho phụ huynh trong buổi họp đầu năm. Cảm ơn
-                    đội ngũ!
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                className="mt-4 inline-flex w-full items-center justify-center gap-1.5 rounded-lg px-3 py-2.5 text-[12.5px] font-semibold text-white transition-transform hover:scale-[1.01]"
-                style={{
-                  background: A.solid,
-                  boxShadow: `0 6px 16px -4px ${A.shadow}`,
-                }}
-              >
-                Gửi
-                <Send className="h-3.5 w-3.5" />
-              </button>
-            </div>
-            <p className="mt-3 text-center font-mono text-[10px] text-slate-400">
-              Chúng tôi đọc email trong giờ hành chính (8h – 18h, T2 – T7).
-            </p>
-          </div>
+          {/* Form gửi góp ý — submit qua Server Action, nội dung gửi thẳng
+              tới hộp thư người vận hành. Không có địa chỉ email nào lộ ra
+              trên DOM phía client. */}
+          <FeedbackForm />
         </div>
       </div>
     </section>

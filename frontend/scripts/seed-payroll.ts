@@ -61,6 +61,12 @@ const DEFAULT_RULES: PayrollRules = {
   late_grace_minutes: 5,
   late_penalty_per_minute: 0,
   co_teacher_split: "EQUAL",
+  pay_on_cancel: {
+    BY_CENTER: true,
+    BY_TEACHER: false,
+    BY_STUDENT: false,
+    FORCE_MAJEURE: true,
+  },
 };
 
 // ─── Teachers ───────────────────────────────────────────────────────────────

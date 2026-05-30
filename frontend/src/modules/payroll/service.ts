@@ -43,6 +43,14 @@ export const DEFAULT_RULES: PayrollRules = {
   late_grace_minutes: 5,
   late_penalty_per_minute: 0,
   co_teacher_split: "EQUAL",
+  // Mặc định: lỗi trung tâm và bất khả kháng → trả lương. GV chủ động
+  // hoặc HS vắng → không trả. Admin có thể override ở UI tạo kỳ.
+  pay_on_cancel: {
+    BY_CENTER: true,
+    BY_TEACHER: false,
+    BY_STUDENT: false,
+    FORCE_MAJEURE: true,
+  },
 };
 
 function err(error: string): { success: false; error: string } {

@@ -33,6 +33,14 @@ export interface Teacher {
   fixed_monthly_amount: number | null;
 }
 
+/** Lý do hủy buổi — quyết định lương có chi cho GV hay không.
+ *  Migration 0036. */
+export type SessionCancelReason =
+  | "BY_TEACHER"      // GV chủ động hủy / nghỉ → không trả
+  | "BY_CENTER"       // Lỗi trung tâm (phòng hỏng, xếp sai) → vẫn trả
+  | "BY_STUDENT"      // Học viên không tới → theo config
+  | "FORCE_MAJEURE";  // Thiên tai / dịch bệnh → theo config
+
 export interface Session {
   id: string;
   class_id: string;
@@ -49,6 +57,8 @@ export interface Session {
   teacher_checkout_at: string | null;
   /** Co-teachers (assistants). Empty / omitted = solo session. */
   co_teacher_ids?: string[];
+  /** Khi status=CANCELLED, lý do quyết định payroll policy. */
+  cancellation_reason?: SessionCancelReason | null;
 }
 
 /**
@@ -92,6 +102,11 @@ export interface PayrollRules {
   late_penalty_per_minute: number;
   /** Co-teaching split rule. PRD §5.8: "Multi-teacher session: split pay configurable." */
   co_teacher_split: "EQUAL" | "PRIMARY_FULL";
+  /** Policy chi lương khi buổi bị huỷ, key theo `cancellation_reason`.
+   *  `true` = vẫn trả (tính như scheduled). `false` = skip.
+   *  Mặc định trong DEFAULT_RULES: BY_CENTER + FORCE_MAJEURE = true;
+   *  BY_TEACHER + BY_STUDENT = false. */
+  pay_on_cancel: Record<SessionCancelReason, boolean>;
 }
 
 export interface PayrollBreakdown {
@@ -114,6 +129,7 @@ export interface PayrollBreakdown {
 export type AuditEntryKind =
   | "SESSION_PAY"
   | "SESSION_SKIPPED"
+  | "SESSION_PAID_DESPITE_CANCEL"  // 0036: huỷ nhưng vẫn trả (BY_CENTER, FORCE_MAJEURE)
   | "SUBSTITUTE_PAY"
   | "CO_TEACHER_SPLIT"
   | "HOURS_CAPPED"

@@ -160,16 +160,42 @@ export function calculatePayroll(input: PayrollInput): PayrollResult {
     if (!inPeriod(s, period.start, period.end)) continue;
 
     if (SKIPPED_STATUSES.has(s.status)) {
-      // PRD §5.8: "Cancelled sessions: don't count."
+      // PRD §5.8 + Migration 0036: huỷ buổi → tra `pay_on_cancel`
+      // theo `cancellation_reason`. Mặc định BY_TEACHER không trả;
+      // BY_CENTER / FORCE_MAJEURE trả; BY_STUDENT cấu hình.
+      // RESCHEDULED vẫn skip vô điều kiện (buổi đã được dời, bản gốc
+      // không tính — buổi mới sẽ tính riêng).
+      const reason = s.cancellation_reason ?? null;
+      const shouldPay =
+        s.status === "CANCELLED" && reason
+          ? (rules.pay_on_cancel[reason] ?? false)
+          : false;
+
+      if (!shouldPay) {
+        audit.push({
+          kind: "SESSION_SKIPPED",
+          session_id: s.id,
+          amount: 0,
+          reason: reason
+            ? `Bỏ qua: huỷ — ${reason}`
+            : `Bỏ qua: trạng thái ${s.status}`,
+        });
+        continue;
+      }
+
+      // Buổi huỷ "trả tiền": tính như scheduled, không có check-in/out
+      // (force-fallback completion_factor). Audit ghi rõ lý do.
       audit.push({
-        kind: "SESSION_SKIPPED",
+        kind: "SESSION_PAID_DESPITE_CANCEL",
         session_id: s.id,
         amount: 0,
-        reason: `Bỏ qua: trạng thái ${s.status}`,
+        reason: `Vẫn trả lương dù huỷ — lý do: ${reason}`,
       });
-      continue;
+      // Fall through to payment logic — engine sẽ dùng scheduled minutes
+      // × completion_factor vì không có check-in.
+    } else if (!PAYABLE_STATUSES.has(s.status)) {
+      continue; // SCHEDULED / IN_PROGRESS — chưa tính
     }
-    if (!PAYABLE_STATUSES.has(s.status)) continue; // SCHEDULED / IN_PROGRESS
 
     sessionsPaid += 1;
 

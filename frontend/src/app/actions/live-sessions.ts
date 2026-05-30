@@ -60,6 +60,10 @@ const updateSessionSchema = z.object({
   duration_minutes: z.number().int().min(5).max(480).optional(),
   teacher_id: z.string().uuid().optional().nullable(),
   is_cancelled: z.boolean().optional(),
+  cancellation_reason: z
+    .enum(["BY_TEACHER", "BY_CENTER", "BY_STUDENT", "FORCE_MAJEURE"])
+    .nullable()
+    .optional(),
 });
 
 // ── TEACHER: Schedule Live Session ────────────────────────────────────────
@@ -289,8 +293,17 @@ export async function updateLiveSession(
       patch.duration_minutes = parsed.data.duration_minutes;
     if (parsed.data.teacher_id !== undefined)
       patch.teacher_id = parsed.data.teacher_id;
-    if (parsed.data.is_cancelled !== undefined)
+    if (parsed.data.is_cancelled !== undefined) {
       patch.is_cancelled = parsed.data.is_cancelled;
+      // DB CHECK constraint: reason chỉ tồn tại khi is_cancelled=TRUE.
+      // Đồng bộ 2 field ở app layer: huỷ thì giữ reason (admin chọn);
+      // bỏ huỷ thì xoá reason luôn.
+      if (parsed.data.is_cancelled === false) {
+        patch.cancellation_reason = null;
+      } else if (parsed.data.cancellation_reason !== undefined) {
+        patch.cancellation_reason = parsed.data.cancellation_reason;
+      }
+    }
     patch.updated_at = new Date().toISOString();
 
     const { data: updated, error } = await supabase

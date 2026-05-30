@@ -125,6 +125,7 @@ export default function SessionDetailsDialog({
   const canEdit = isAdmin || isOwnSession;
   const router = useRouter();
   const [mode, setMode] = useState<"view" | "edit">("view");
+  const [showCancelPicker, setShowCancelPicker] = useState(false);
   const [isSaving, startSaveTransition] = useTransition();
 
   // Edit-mode form state, hydrated from `session` whenever it opens or changes.
@@ -174,13 +175,33 @@ export default function SessionDetailsDialog({
     });
   }
 
-  async function handleToggleCancelled() {
+  // Khi user bấm "Huỷ buổi" mở picker chọn lý do trước.
+  // null = không mở. Khi user chọn xong → thực hiện huỷ với reason đó.
+  type SessionCancelReason =
+    | "BY_TEACHER"
+    | "BY_CENTER"
+    | "BY_STUDENT"
+    | "FORCE_MAJEURE";
+
+  function handleToggleCancelled() {
     if (!session) return;
-    const next = !session.is_cancelled;
+    // Khôi phục (đang huỷ → bật lại) không cần lý do.
+    if (session.is_cancelled) {
+      runCancel(false, null);
+      return;
+    }
+    // Bật huỷ → mở picker.
+    setShowCancelPicker(true);
+  }
+
+  function runCancel(next: boolean, reason: SessionCancelReason | null) {
+    if (!session) return;
+    setShowCancelPicker(false);
     startSaveTransition(async () => {
       const result = await updateLiveSession({
         id: session.id,
         is_cancelled: next,
+        cancellation_reason: reason,
       });
       if (result.success) {
         toast.success(next ? "Đã hủy buổi học." : "Đã khôi phục buổi học.");
@@ -573,7 +594,116 @@ export default function SessionDetailsDialog({
         </motion.div>
       </motion.div>
       )}
+
+      {/* Picker chọn lý do huỷ. Lý do quyết định lương có chi cho GV
+          buổi đó không (PRD §5.8 + Migration 0036). */}
+      {showCancelPicker && (
+        <motion.div
+          key="cancel-picker"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm"
+          onClick={() => setShowCancelPicker(false)}
+        >
+          <motion.div
+            initial={{ scale: 0.96, opacity: 0, y: 8 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            transition={{ type: "spring", damping: 26, stiffness: 360 }}
+            className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-base font-bold text-slate-900">
+              Lý do huỷ buổi học
+            </h3>
+            <p className="mt-1 text-xs leading-relaxed text-slate-500">
+              Lý do quyết định buổi này có tính lương cho giáo viên hay
+              không. Có thể đổi sau ở chi tiết buổi.
+            </p>
+            <div className="mt-4 space-y-2">
+              <CancelReasonButton
+                value="BY_TEACHER"
+                label="Giáo viên chủ động huỷ / nghỉ"
+                desc="GV xin nghỉ, đổi ca. Không tính lương buổi này."
+                payHint="❌ Không trả"
+                onPick={() => runCancel(true, "BY_TEACHER")}
+              />
+              <CancelReasonButton
+                value="BY_CENTER"
+                label="Lỗi từ trung tâm"
+                desc="Phòng hỏng, xếp sai lịch, đóng cửa đột xuất. GV vẫn được trả lương."
+                payHint="✓ Vẫn trả"
+                onPick={() => runCancel(true, "BY_CENTER")}
+                positive
+              />
+              <CancelReasonButton
+                value="BY_STUDENT"
+                label="Học viên vắng / huỷ"
+                desc="Ít hoặc không có học viên tham gia. Mặc định không tính lương."
+                payHint="❌ Không trả"
+                onPick={() => runCancel(true, "BY_STUDENT")}
+              />
+              <CancelReasonButton
+                value="FORCE_MAJEURE"
+                label="Bất khả kháng"
+                desc="Thiên tai, dịch bệnh, mất điện diện rộng. Mặc định vẫn trả lương."
+                payHint="✓ Vẫn trả"
+                onPick={() => runCancel(true, "FORCE_MAJEURE")}
+                positive
+              />
+            </div>
+            <div className="mt-4 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setShowCancelPicker(false)}
+                className="rounded-xl px-4 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100"
+              >
+                Quay lại
+              </button>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
     </AnimatePresence>
+  );
+}
+
+// ── Sub-component: nút chọn lý do huỷ ───────────────────────────────────
+
+function CancelReasonButton({
+  label,
+  desc,
+  payHint,
+  positive,
+  onPick,
+}: {
+  value: string;
+  label: string;
+  desc: string;
+  payHint: string;
+  positive?: boolean;
+  onPick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onPick}
+      className="group w-full rounded-xl border border-slate-200 bg-white p-3 text-left transition-colors hover:border-slate-300 hover:bg-slate-50"
+    >
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-semibold text-slate-900">{label}</p>
+        <span
+          className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ${
+            positive
+              ? "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200"
+              : "bg-rose-50 text-rose-700 ring-1 ring-inset ring-rose-200"
+          }`}
+        >
+          {payHint}
+        </span>
+      </div>
+      <p className="mt-1 text-[12px] leading-relaxed text-slate-500">{desc}</p>
+    </button>
   );
 }
 

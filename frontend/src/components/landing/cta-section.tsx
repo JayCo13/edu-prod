@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { ArrowRight, Send, Sparkles } from "lucide-react";
 
 import { ACCENT } from "./_accent";
@@ -71,46 +70,47 @@ export default function CTASection() {
               style={{ borderColor: A.tint, color: A.solid }}
             >
               <Sparkles className="h-3 w-3" />
-              Đang nhận trung tâm và trường học dùng thử
+              Đang lắng nghe góp ý từ trung tâm và trường học
             </span>
             <h2 className="mt-5 font-display text-[36px] font-bold leading-[1.1] tracking-tight text-slate-900 sm:text-[48px]">
-              Đỡ một việc mỗi tháng — <br />
+              Có gợi ý cải tiến? <br />
               <span
                 className="bg-clip-text text-transparent"
                 style={{
                   backgroundImage: `linear-gradient(120deg, ${A.from}, ${A.to})`,
                 }}
               >
-                đúng giờ, đúng số.
+                Chúng tôi muốn nghe.
               </span>
             </h2>
             <p className="mt-5 max-w-lg text-[15.5px] leading-relaxed text-slate-600">
-              Demo 15 phút trên Google Meet. Trung tâm thì đi qua lịch dạy +
-              bảng lương; trường học thì đi qua quy trình xếp thời khoá biểu —
-              với danh sách giáo viên thật của bạn.
+              Sản phẩm đang trong giai đoạn dùng thử. Mỗi email góp ý từ trung
+              tâm và trường học — kể về chỗ rối, tính năng còn thiếu, hoặc đơn
+              giản là điều bạn thích — giúp chúng tôi biết nên ưu tiên xây gì
+              tiếp theo.
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-4">
-              <Link
-                href="#demo"
+              <a
+                href="mailto:hello@edura.vn?subject=G%C3%B3p%20%C3%BD%20Edura"
                 className="group inline-flex items-center gap-2 rounded-xl px-6 py-3.5 text-[14px] font-semibold text-white transition-transform hover:scale-[1.02] active:scale-[0.98]"
                 style={{
                   background: A.solid,
                   boxShadow: `0 12px 30px -8px ${A.shadow}`,
                 }}
               >
-                Đặt lịch demo 15 phút
+                Gửi email đóng góp
                 <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-              </Link>
+              </a>
               <a
                 href="mailto:hello@edura.vn"
                 className="font-mono text-[13px] font-medium text-slate-500 transition-colors hover:text-slate-900"
               >
-                Hoặc email hello@edura.vn →
+                hello@edura.vn →
               </a>
             </div>
           </div>
 
-          {/* Demo form preview — light bg with accent ring shadow. */}
+          {/* Feedback email preview — mock của khung soạn email góp ý. */}
           <div className="relative hidden lg:block">
             <div
               className="rounded-2xl border border-slate-200/80 bg-white p-5"
@@ -123,31 +123,39 @@ export default function CTASection() {
                   className="font-mono text-[10px] font-semibold uppercase tracking-wide"
                   style={{ color: A.solid }}
                 >
-                  · Đặt lịch demo
+                  · Email mới
                 </p>
                 <span className="font-mono text-[9px] uppercase tracking-wide text-slate-400">
                   Bản xem trước
                 </span>
               </div>
               <div className="mt-3 space-y-2">
-                {[
-                  { l: "Tên bạn", v: "Nguyễn Văn A" },
-                  { l: "Trung tâm / trường", v: "Trung tâm ABC" },
-                  { l: "Số giáo viên", v: "10 – 20" },
-                  { l: "Điện thoại Zalo", v: "09xx xxx xxx" },
-                ].map((f, i) => (
-                  <div
-                    key={i}
-                    className="rounded-lg border border-slate-200/60 bg-slate-50/60 px-3 py-2"
-                  >
-                    <p className="font-mono text-[9px] uppercase tracking-wide text-slate-400">
-                      {f.l}
-                    </p>
-                    <p className="mt-0.5 text-[12.5px] font-medium text-slate-600">
-                      {f.v}
-                    </p>
-                  </div>
-                ))}
+                <div className="rounded-lg border border-slate-200/60 bg-slate-50/60 px-3 py-2">
+                  <p className="font-mono text-[9px] uppercase tracking-wide text-slate-400">
+                    Đến
+                  </p>
+                  <p className="mt-0.5 font-mono text-[12.5px] font-medium text-slate-700">
+                    hello@edura.vn
+                  </p>
+                </div>
+                <div className="rounded-lg border border-slate-200/60 bg-slate-50/60 px-3 py-2">
+                  <p className="font-mono text-[9px] uppercase tracking-wide text-slate-400">
+                    Chủ đề
+                  </p>
+                  <p className="mt-0.5 text-[12.5px] font-medium text-slate-700">
+                    Góp ý về tính năng xếp thời khoá biểu
+                  </p>
+                </div>
+                <div className="rounded-lg border border-slate-200/60 bg-slate-50/60 px-3 py-2">
+                  <p className="font-mono text-[9px] uppercase tracking-wide text-slate-400">
+                    Nội dung
+                  </p>
+                  <p className="mt-0.5 text-[12.5px] leading-relaxed text-slate-600">
+                    Mình thấy phần xếp lịch nên có thêm chế độ in theo lớp
+                    để phát cho phụ huynh trong buổi họp đầu năm. Cảm ơn
+                    đội ngũ!
+                  </p>
+                </div>
               </div>
               <button
                 type="button"

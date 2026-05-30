@@ -61,6 +61,12 @@ export default async function PayrollListPage() {
           </p>
         </div>
         <div className="flex flex-shrink-0 items-center gap-2">
+          <Link
+            href="/admin/payroll/recurring"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50"
+          >
+            Phụ cấp định kỳ
+          </Link>
           <WorkflowHelpButton />
           <CreatePeriodDialog />
         </div>

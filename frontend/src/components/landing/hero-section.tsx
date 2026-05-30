@@ -238,7 +238,7 @@ function HeroVisual({ A, seen }: { A: typeof ACCENT; seen: boolean }) {
             <span className="h-2.5 w-2.5 rounded-full bg-emerald-300" />
           </div>
           <div className="ml-3 flex-1 truncate rounded-md bg-white px-3 py-1 font-mono text-[11px] text-slate-500">
-            <span className="text-slate-400">vlearning.io/</span>
+            <span className="text-slate-400">edura.vn/</span>
             admin/dashboard
           </div>
         </div>

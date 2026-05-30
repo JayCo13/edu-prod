@@ -24,8 +24,8 @@ const beVietnamPro = Be_Vietnam_Pro({
 
 export const metadata: Metadata = {
   title: {
-    default: "VLearning — White-label EdTech Platform",
-    template: "%s | VLearning",
+    default: "Edura — White-label EdTech Platform",
+    template: "%s | Edura",
   },
   description:
     "B2B SaaS White-label EdTech Platform — Build your own branded online learning experience.",
@@ -33,7 +33,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     locale: "en_US",
-    siteName: "VLearning",
+    siteName: "Edura",
   },
 };
 

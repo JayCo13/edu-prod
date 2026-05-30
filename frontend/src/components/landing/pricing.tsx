@@ -69,7 +69,7 @@ const PLANS: PlanProps[] = [
       "Tuỳ chỉnh báo cáo theo nhu cầu",
       "Hợp đồng + xuất hoá đơn VAT",
     ],
-    cta: { label: "Gửi email", href: "mailto:hello@vlearning.io" },
+    cta: { label: "Gửi email", href: "mailto:hello@edura.vn" },
   },
 ];
 

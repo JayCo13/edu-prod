@@ -100,7 +100,7 @@ export default function RegisterForm() {
               <span className="grid h-10 w-10 place-items-center rounded-xl bg-slate-900 text-sm font-black text-white">
                 V
               </span>
-              <span className="font-display">VLearning</span>
+              <span className="font-display">Edura</span>
             </Link>
 
             <div>
@@ -159,7 +159,7 @@ export default function RegisterForm() {
                   <span className="grid h-10 w-10 place-items-center rounded-xl bg-slate-900 text-sm font-black text-white">
                     V
                   </span>
-                  <span className="font-display">VLearning</span>
+                  <span className="font-display">Edura</span>
                 </Link>
               </div>
 

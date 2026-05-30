@@ -174,7 +174,7 @@ export async function exportSessionsToExcel(
   context: ExportContext = {},
 ): Promise<void> {
   const wb = new ExcelJS.Workbook();
-  wb.creator = "VLearning";
+  wb.creator = "Edura";
   wb.created = new Date();
   const sheet = wb.addWorksheet("Thời khoá biểu", {
     views: [{ state: "frozen", ySplit: 5, xSplit: 2 }],

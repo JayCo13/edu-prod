@@ -12,7 +12,7 @@ import { ACCENT } from "./_accent";
 
 const ITEMS = [
   {
-    q: "Trung tâm và trường học khác nhau dùng VLearning thế nào?",
+    q: "Trung tâm và trường học khác nhau dùng Edura thế nào?",
     a:
       "Khi đăng ký, bạn chọn loại tài khoản: Trung tâm dạy thêm sẽ thấy Lịch dạy + Bảng lương + Khóa học; Trường học sẽ thấy Thời khoá biểu cả khối + Quản lý lớp + Môn + Tiết. Phần Giáo viên và Cài đặt thì cả hai loại đều có. Bạn có thể đổi loại sau nếu cần.",
   },
@@ -22,14 +22,14 @@ const ITEMS = [
       "Dữ liệu lưu trên Supabase Cloud với Row-Level Security theo từng tài khoản — không tổ chức nào đọc được dữ liệu của tổ chức khác. Mật khẩu lưu bằng bcrypt, mọi đường truyền đều HTTPS. Chúng tôi không bán hoặc chia sẻ dữ liệu cho bên thứ ba. Bạn có thể xuất file Excel toàn bộ dữ liệu bất cứ lúc nào để sao lưu.",
   },
   {
-    q: "Đang dùng Excel — chuyển sang VLearning có khó không?",
+    q: "Đang dùng Excel — chuyển sang Edura có khó không?",
     a:
       "Có file Excel mẫu để bạn dán danh sách giáo viên, lớp, môn vào rồi upload là xong. Nếu cần hỗ trợ chuyển dữ liệu cụ thể, gửi email — chúng tôi sẽ giúp trong giai đoạn dùng thử.",
   },
   {
     q: "Có cần cài server hay phần mềm gì không?",
     a:
-      "Không. VLearning chạy trên trình duyệt — máy tính hay điện thoại đều mở được. Không cần đội IT, không cần cài ứng dụng, không cần cập nhật phần mềm.",
+      "Không. Edura chạy trên trình duyệt — máy tính hay điện thoại đều mở được. Không cần đội IT, không cần cài ứng dụng, không cần cập nhật phần mềm.",
   },
   {
     q: "Giáo viên có phải tải ứng dụng riêng không?",

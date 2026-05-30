@@ -15,7 +15,7 @@ import PayoutScheduleCard from "./_components/PayoutScheduleCard";
 import WorkflowHelpButton from "./_components/WorkflowHelpButton";
 
 export const metadata: Metadata = {
-  title: "Bảng lương — VLearning",
+  title: "Bảng lương — Edura",
 };
 
 /**

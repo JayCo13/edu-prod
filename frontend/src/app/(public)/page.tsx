@@ -10,11 +10,11 @@ import CTASection from "@/components/landing/cta-section";
 // trung tâm. File vẫn nằm trong components/landing/ — import lại khi cần.
 
 export const metadata: Metadata = {
-  title: "VLearning — Quản lý trung tâm và trường học",
+  title: "Edura — Quản lý trung tâm và trường học",
   description:
     "Một nền tảng cho trung tâm dạy thêm (tính lương theo buổi, xuất Excel) và trường học (xếp thời khoá biểu cả khối trong một bảng). Đang trong giai đoạn dùng thử.",
   openGraph: {
-    title: "VLearning — Quản lý trung tâm và trường học",
+    title: "Edura — Quản lý trung tâm và trường học",
     description:
       "Bảng lương cho trung tâm · Thời khoá biểu cho trường học · Quản lý giáo viên cho cả hai. Tiếng Việt, xuất Excel.",
   },

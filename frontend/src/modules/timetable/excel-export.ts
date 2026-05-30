@@ -55,7 +55,7 @@ export interface ExportTkbInput {
  *  visible on first open. */
 export async function exportTkbToExcel(input: ExportTkbInput): Promise<Blob> {
   const wb = new ExcelJS.Workbook();
-  wb.creator = "VLearning";
+  wb.creator = "Edura";
   wb.created = new Date();
 
   const morning = input.periods

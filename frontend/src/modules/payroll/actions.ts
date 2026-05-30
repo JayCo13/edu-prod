@@ -713,7 +713,7 @@ export async function markPayrollItemPaidAction(input: MarkItemInput) {
     if (!ctxInfo.email) return;
     const origin =
       process.env.NEXT_PUBLIC_APP_URL?.replace(/\/+$/, "") ??
-      "https://app.vlearning.vn";
+      "https://app.edura.vn";
     await sendWhiteLabelEmail({
       to: ctxInfo.email,
       subject: `Đã thanh toán lương ${formatPeriodLabel(period.period_start)} — ${item.teacher_snapshot.name}`,

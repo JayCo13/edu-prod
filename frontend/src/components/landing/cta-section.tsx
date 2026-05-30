@@ -102,10 +102,10 @@ export default function CTASection() {
                 <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
               </Link>
               <a
-                href="mailto:hello@vlearning.io"
+                href="mailto:hello@edura.vn"
                 className="font-mono text-[13px] font-medium text-slate-500 transition-colors hover:text-slate-900"
               >
-                Hoặc email hello@vlearning.io →
+                Hoặc email hello@edura.vn →
               </a>
             </div>
           </div>

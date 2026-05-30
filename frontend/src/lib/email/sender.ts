@@ -311,7 +311,7 @@ export function payoutPaidEmailContent(params: {
       Xem chi tiết
     </a>
     <p style="color:#94a3b8;font-size:12px;margin-top:16px;">
-      Email này được hệ thống VLearning gửi tự động. Nếu có sai sót, vui lòng
+      Email này được hệ thống Edura gửi tự động. Nếu có sai sót, vui lòng
       phản hồi trực tiếp cho quản trị viên trung tâm.
     </p>
   `;

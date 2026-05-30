@@ -75,7 +75,7 @@ export default function HowItWorks() {
             · 03 — CÁCH HOẠT ĐỘNG
           </p>
           <h2 className="mt-3 font-display text-[34px] font-bold leading-[1.1] tracking-tight text-slate-900 sm:text-[44px]">
-            Ba bước, từ Excel cũ đến VLearning.
+            Ba bước, từ Excel cũ đến Edura.
           </h2>
         </div>
 

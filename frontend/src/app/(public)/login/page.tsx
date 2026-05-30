@@ -4,7 +4,7 @@ import LoginForm from "@/components/auth/login-form";
 
 export const metadata: Metadata = {
   title: "Đăng nhập",
-  description: "Đăng nhập vào VLearning để quản lý khóa học của bạn.",
+  description: "Đăng nhập vào Edura để quản lý khóa học của bạn.",
 };
 
 /**

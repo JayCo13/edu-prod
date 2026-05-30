@@ -10,7 +10,7 @@ const NAV_ITEMS = [
   { label: "Tính năng", href: "/#features" },
   { label: "Bảng giá", href: "/#pricing" },
   { label: "FAQ", href: "/#faq" },
-  { label: "Liên hệ", href: "mailto:hello@vlearning.io" },
+  { label: "Liên hệ", href: "mailto:hello@edura.vn" },
 ];
 
 // Footer columns — B2B center-owner positioning.
@@ -84,7 +84,7 @@ export default async function PublicLayout({
               >
                 V
               </span>
-              <span className="font-display">VLearning</span>
+              <span className="font-display">Edura</span>
             </Link>
             <span className="hidden items-center gap-1.5 rounded-full border border-emerald-200/70 bg-emerald-50/70 px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-emerald-700 lg:inline-flex">
               <span className="relative flex h-1.5 w-1.5">
@@ -178,7 +178,7 @@ export default async function PublicLayout({
                 >
                   V
                 </span>
-                VLearning
+                Edura
               </Link>
               <p className="mt-4 max-w-xs text-[13px] leading-relaxed text-slate-500">
                 Phần mềm quản lý trung tâm giáo dục: lịch dạy, lương giáo viên,
@@ -187,10 +187,10 @@ export default async function PublicLayout({
               <div className="mt-5 space-y-1.5 font-mono text-[11px] text-slate-500">
                 <p>
                   <a
-                    href="mailto:hello@vlearning.io"
+                    href="mailto:hello@edura.vn"
                     className="transition-colors hover:text-slate-900"
                   >
-                    hello@vlearning.io
+                    hello@edura.vn
                   </a>
                 </p>
                 <p className="text-slate-400">Việt Nam · Early access</p>
@@ -215,7 +215,7 @@ export default async function PublicLayout({
           </div>
           <div className="mt-14 flex flex-col items-start justify-between gap-4 border-t border-slate-100 pt-8 sm:flex-row sm:items-center">
             <p className="text-[12px] text-slate-400">
-              © {new Date().getFullYear()} VLearning. Giai đoạn early access.
+              © {new Date().getFullYear()} Edura. Giai đoạn early access.
             </p>
             <p className="font-mono text-[12px] text-slate-400">
               Made in Vietnam.

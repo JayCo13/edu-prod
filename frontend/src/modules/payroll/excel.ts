@@ -48,7 +48,7 @@ export function buildPayrollWorkbook(input: {
   const { period, items, center } = input;
 
   const wb = new ExcelJS.Workbook();
-  wb.creator = "VLearning";
+  wb.creator = "Edura";
   wb.created = new Date();
 
   const ws = wb.addWorksheet("Bảng lương", {

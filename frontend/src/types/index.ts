@@ -1,5 +1,5 @@
 /* ============================================================================
-   VLearning — Shared TypeScript Types
+   Edura — Shared TypeScript Types
    ============================================================================
    Central type definitions shared across the frontend application.
    Keep types co-located with their domain when they grow complex.

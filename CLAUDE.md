@@ -20,7 +20,7 @@ This is a **B2B SaaS for Vietnamese education centers (trung tâm)** — schedul
 
 Single-app monorepo (Supabase-only architecture):
 
-- `frontend/` — Next.js 16 (App Router, Turbopack, React 19, Tailwind v4). All server logic lives in **Server Actions** + Next.js **Route Handlers**; no separate API server. Registered as `@vlearning/frontend` in the pnpm workspace.
+- `frontend/` — Next.js 16 (App Router, Turbopack, React 19, Tailwind v4). All server logic lives in **Server Actions** + Next.js **Route Handlers**; no separate API server. Registered as `@edura/frontend` in the pnpm workspace.
 - `backend/supabase/migrations/` — Numbered SQL migrations for the Supabase Postgres schema. Apply via `pnpm db:push` (or paste into Supabase Dashboard SQL Editor). RLS is enabled on every table.
 - `backend/supabase/already/` — Snapshots of already-applied schema (reference only, not pending migrations).
 - `PRD.md` — Product requirements. Source of truth for product direction.

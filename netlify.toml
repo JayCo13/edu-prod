@@ -1,4 +1,4 @@
-# Netlify build config — VLearning (Next.js 16 + Supabase, pnpm monorepo).
+# Netlify build config — Edura (Next.js 16 + Supabase, pnpm monorepo).
 #
 # The Next.js app lives under `frontend/`, so we set `base` there. Netlify's
 # Next.js plugin handles SSR, Server Actions, Route Handlers, and Edge
@@ -10,7 +10,7 @@
 # Install + build from the repo root so pnpm picks up pnpm-workspace.yaml,
 # but publish the Next.js output that lives under `frontend/`.
 [build]
-  command = "pnpm install --frozen-lockfile && pnpm --filter @vlearning/frontend build"
+  command = "pnpm install --frozen-lockfile && pnpm --filter @edura/frontend build"
   publish = "frontend/.next"
 
 [build.environment]

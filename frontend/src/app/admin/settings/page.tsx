@@ -4,7 +4,7 @@ import { getCenterById } from "@/modules/centers/service";
 import SettingsForm from "@/modules/centers/components/SettingsForm";
 
 export const metadata: Metadata = {
-  title: "Cấu hình trung tâm — VLearning",
+  title: "Cấu hình trung tâm — Edura",
 };
 
 /**

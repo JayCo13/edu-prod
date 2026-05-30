@@ -37,7 +37,7 @@ export default function Testimonial() {
             <p className="mt-3 font-display text-[22px] font-semibold leading-snug text-slate-900 sm:text-[26px]">
               &ldquo;Trước đây cuối tháng tôi mất{" "}
               <span style={{ color: A.solid }}>2 ngày</span> ngồi xếp Excel cho
-              24 giáo viên — sai số liên tục. Chuyển sang VLearning, mất đúng{" "}
+              24 giáo viên — sai số liên tục. Chuyển sang Edura, mất đúng{" "}
               <span style={{ color: A.solid }}>15 phút</span> bấm Chốt lương,
               xuất Excel chuẩn ngân hàng. Cô kế toán không còn cằn nhằn.&rdquo;
             </p>

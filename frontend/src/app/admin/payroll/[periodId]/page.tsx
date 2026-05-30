@@ -10,7 +10,7 @@ import {
 import PeriodDetailClient from "./_components/PeriodDetailClient";
 
 export const metadata: Metadata = {
-  title: "Chi tiết kỳ lương — VLearning",
+  title: "Chi tiết kỳ lương — Edura",
 };
 
 interface PageProps {

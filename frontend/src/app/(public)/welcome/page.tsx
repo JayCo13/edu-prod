@@ -139,7 +139,7 @@ export default function WelcomePage() {
             <Sparkles className="h-6 w-6 text-white" />
           </motion.div>
           <p className="font-mono text-[10.5px] font-semibold uppercase tracking-[0.2em] text-indigo-600">
-            Chào mừng đến VLearning
+            Chào mừng đến Edura
           </p>
           <h1 className="mt-1.5 text-2xl font-bold tracking-tight text-slate-900">
             {displayName ? `Xin chào, ${displayName}` : "Đặt mật khẩu"}

@@ -1,5 +1,5 @@
 /* ============================================================================
-   VLearning — Supabase Database Types (Multi-tenant)
+   Edura — Supabase Database Types (Multi-tenant)
    ============================================================================
    Mirrors the actual PostgreSQL schema from `already1.sql`.
    ============================================================================ */

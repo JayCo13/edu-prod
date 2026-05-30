@@ -196,26 +196,28 @@ export default function TopNavbar() {
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -6, scale: 0.97 }}
                 transition={{ duration: 0.14, ease: "easeOut" }}
-                className="absolute right-0 top-11 z-50 w-64 origin-top-right overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl"
+                className="absolute right-0 top-11 z-50 w-80 origin-top-right overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl"
               >
-                {/* User info */}
-                <div className="border-b border-slate-100 px-4 py-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="font-mono text-[10px] uppercase tracking-wide text-slate-400">
-                      Đang đăng nhập
-                    </p>
-                    <div className="flex items-center gap-1">
-                      {kind !== null && <KindBadge kind={kind} />}
-                      {isAdmin !== null && <RoleBadge isAdmin={isAdmin} />}
-                    </div>
-                  </div>
-                  <p className="mt-1 truncate text-sm font-semibold text-slate-900">
+                {/* User info — eyebrow + name + email ở trên,
+                    badges để xuống dòng riêng phía dưới để không
+                    chen lấn với label hoặc cắt mất email. */}
+                <div className="border-b border-slate-100 px-4 py-3.5">
+                  <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-400">
+                    Đang đăng nhập
+                  </p>
+                  <p className="mt-1.5 truncate text-sm font-bold text-slate-900">
                     {displayName || "Người dùng"}
                   </p>
                   {email && (
                     <p className="mt-0.5 truncate text-xs text-slate-500">
                       {email}
                     </p>
+                  )}
+                  {(kind !== null || isAdmin !== null) && (
+                    <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+                      {kind !== null && <KindBadge kind={kind} />}
+                      {isAdmin !== null && <RoleBadge isAdmin={isAdmin} />}
+                    </div>
                   )}
                 </div>
 

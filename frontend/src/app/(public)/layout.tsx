@@ -83,9 +83,9 @@ export default async function PublicLayout({
               <img
                 src="/edura-logo.png"
                 alt="Edura"
-                width={140}
-                height={42}
-                className="h-10 w-auto"
+                width={200}
+                height={150}
+                className="h-14 w-auto sm:h-16"
               />
             </Link>
             <span className="hidden items-center gap-1.5 rounded-full border border-emerald-200/70 bg-emerald-50/70 px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-emerald-700 lg:inline-flex">

@@ -139,14 +139,18 @@ export default function AnimatedSidebar() {
       transition={{ type: "spring", stiffness: 300, damping: 30 }}
     >
       {/* ── Brand ─────────────────────────────────────────── */}
-      <div className="flex h-16 items-center border-b border-slate-100 px-5">
+      <div
+        className={`flex border-b border-slate-100 ${
+          isCollapsed ? "h-20 items-center justify-center px-2" : "h-24 items-center justify-center px-4"
+        }`}
+      >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src="/edura-logo.png"
           alt="Edura"
-          width={140}
-          height={42}
-          className="h-9 w-auto"
+          width={200}
+          height={150}
+          className={isCollapsed ? "h-12 w-auto" : "h-16 w-auto"}
         />
       </div>
 

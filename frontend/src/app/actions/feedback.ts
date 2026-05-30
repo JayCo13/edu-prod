@@ -52,6 +52,25 @@ export async function sendFeedback(
   _prev: SendFeedbackResult | null,
   formData: FormData,
 ): Promise<SendFeedbackResult> {
+  // ── Anti-spam ─────────────────────────────────────────────────────────
+  //
+  // Honeypot: trường ẩn `website` mắt người không thấy, không tab vào.
+  // Bot fill mọi input → có giá trị → giả vờ thành công, không gửi mail.
+  const honeypot = formData.get("website");
+  if (typeof honeypot === "string" && honeypot.trim().length > 0) {
+    return { success: true };
+  }
+
+  // Time check: form phải mở ít nhất 1500ms trước khi submit. Bot
+  // thường submit gần như tức thì.
+  const renderedAt = Number(formData.get("t"));
+  if (Number.isFinite(renderedAt) && Date.now() - renderedAt < 1500) {
+    return {
+      success: false,
+      error: "Vui lòng đợi một chút rồi gửi lại.",
+    };
+  }
+
   const parsed = schema.safeParse({
     name: formData.get("name"),
     fromEmail: formData.get("fromEmail"),

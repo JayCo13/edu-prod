@@ -9,6 +9,7 @@ import {
   BookOpen,
   Calendar,
   CalendarDays,
+  CreditCard,
   UserCog,
   Settings,
   X,
@@ -52,6 +53,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Giáo viên", href: "/dashboard/teachers", icon: UserCog },
   { label: "Bảng lương", href: "/admin/payroll", icon: Wallet, kinds: ["CENTER"] },
   { label: "Nhận lương", href: "/dashboard/payouts", icon: Banknote, hideForAdmin: true, kinds: ["CENTER"] },
+  { label: "Thanh toán", href: "/admin/billing", icon: CreditCard },
   { label: "Cài đặt", href: "/admin/settings", icon: Settings },
   // [DEPRECATED per PRD §4.3] - hidden 2026-05-12 — teacher public storefront out of scope
   // { label: "Trang cá nhân", href: "/dashboard/profile", icon: Settings },

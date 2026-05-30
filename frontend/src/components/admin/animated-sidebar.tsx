@@ -9,6 +9,7 @@ import {
   BookOpen,
   Calendar,
   CalendarDays,
+  CreditCard,
   UserCog,
   Settings,
   ChevronsLeft,
@@ -71,6 +72,8 @@ const NAV_ITEMS: NavItem[] = [
   // Teacher-side surface — admins shouldn't see this (they manage payroll
   // via /admin/payroll). Also CENTER-only since SCHOOL has no payroll.
   { label: "Nhận lương", href: "/dashboard/payouts", icon: Banknote, hideForAdmin: true, kinds: ["CENTER"] },
+  // Thanh toán + hoá đơn điện tử — chung cho cả CENTER và SCHOOL admin.
+  { label: "Thanh toán", href: "/admin/billing", icon: CreditCard },
   { label: "Cài đặt", href: "/admin/settings", icon: Settings },
   // [DEPRECATED per PRD §4.3] - hidden 2026-05-12 — teacher public storefront out of scope
   // { label: "Trang cá nhân", href: "/dashboard/profile", icon: Settings },

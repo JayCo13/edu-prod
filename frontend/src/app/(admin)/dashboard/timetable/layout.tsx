@@ -21,6 +21,13 @@ export default function TimetableLayout({ children }: { children: ReactNode }) {
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
+      {/* Banner quota khối — đặt ở đầu mục để user thấy ngay khi vào.
+          Tự ẩn khi gói trả phí (unlimited). `data-tkb-chrome` để tour
+          / print ẩn được. Hiện cả ở editor và các tab khác. */}
+      <div className="print:hidden" data-tkb-chrome="true">
+        <GradeQuotaBanner />
+      </div>
+
       {!isEditor && (
         <>
           <header className="print:hidden" data-tkb-chrome="true">
@@ -40,13 +47,6 @@ export default function TimetableLayout({ children }: { children: ReactNode }) {
           </div>
         </>
       )}
-
-      {/* Banner quota khối — hiện ở cả editor và các tab khác. Tự ẩn khi
-          gói trả phí (unlimited). Đặt `data-tkb-chrome` để tour / print
-          ẩn được. */}
-      <div className="print:hidden" data-tkb-chrome="true">
-        <GradeQuotaBanner />
-      </div>
 
       <div>{children}</div>
     </div>

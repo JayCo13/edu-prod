@@ -10,13 +10,13 @@ import CTASection from "@/components/landing/cta-section";
 // trung tâm. File vẫn nằm trong components/landing/ — import lại khi cần.
 
 export const metadata: Metadata = {
-  title: "VLearning — Phần mềm quản lý trung tâm giáo dục",
+  title: "VLearning — Quản lý trung tâm và trường học",
   description:
-    "Một chỗ quản lịch dạy, điểm danh, và tính lương giáo viên cho trung tâm. Đang trong giai đoạn early access.",
+    "Một nền tảng cho trung tâm dạy thêm (tính lương theo buổi, xuất Excel) và trường học (xếp thời khoá biểu cả khối trong một bảng). Đang trong giai đoạn dùng thử.",
   openGraph: {
-    title: "VLearning — Phần mềm quản lý trung tâm giáo dục",
+    title: "VLearning — Quản lý trung tâm và trường học",
     description:
-      "Bảng lương + lịch dạy + quản lý giáo viên cho trung tâm Việt Nam. Trả theo số giáo viên active.",
+      "Bảng lương cho trung tâm · Thời khoá biểu cho trường học · Quản lý giáo viên cho cả hai. Tiếng Việt, xuất Excel.",
   },
 };
 

@@ -71,10 +71,10 @@ export default function CTASection() {
               style={{ borderColor: A.tint, color: A.solid }}
             >
               <Sparkles className="h-3 w-3" />
-              Đang nhận trung tâm dùng thử
+              Đang nhận trung tâm và trường học dùng thử
             </span>
             <h2 className="mt-5 font-display text-[36px] font-bold leading-[1.1] tracking-tight text-slate-900 sm:text-[48px]">
-              Bảng lương tự động — <br />
+              Đỡ một việc mỗi tháng — <br />
               <span
                 className="bg-clip-text text-transparent"
                 style={{
@@ -85,9 +85,9 @@ export default function CTASection() {
               </span>
             </h2>
             <p className="mt-5 max-w-lg text-[15.5px] leading-relaxed text-slate-600">
-              Demo 15 phút trên Google Meet. Chúng tôi đi qua lịch dạy, bảng
-              lương và thời khoá biểu — với danh sách giáo viên thật của trung
-              tâm bạn.
+              Demo 15 phút trên Google Meet. Trung tâm thì đi qua lịch dạy +
+              bảng lương; trường học thì đi qua quy trình xếp thời khoá biểu —
+              với danh sách giáo viên thật của bạn.
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-4">
               <Link
@@ -132,7 +132,7 @@ export default function CTASection() {
               <div className="mt-3 space-y-2">
                 {[
                   { l: "Tên bạn", v: "Nguyễn Văn A" },
-                  { l: "Trung tâm", v: "Trung tâm ABC" },
+                  { l: "Trung tâm / trường", v: "Trung tâm ABC" },
                   { l: "Số giáo viên", v: "10 – 20" },
                   { l: "Điện thoại Zalo", v: "09xx xxx xxx" },
                 ].map((f, i) => (

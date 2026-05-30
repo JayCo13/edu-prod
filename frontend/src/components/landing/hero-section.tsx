@@ -78,7 +78,7 @@ export default function HeroSection() {
                   style={{ background: A.solid }}
                 />
               </span>
-              Đang nhận trung tâm dùng thử (early access)
+              Đang nhận trung tâm và trường học dùng thử
             </span>
 
             {/* leading-[1.18] (not 1.04 as the original design used) so the
@@ -87,7 +87,7 @@ export default function HeroSection() {
                 "Cuối tháng đỡ ngồi Excel tính lương." worked at 1.04 by luck
                 of where the line break happened. */}
             <h1 className="mt-6 font-display text-[44px] leading-[1.18] tracking-tight text-slate-900 sm:text-[56px] lg:text-[60px]">
-              Tự động hoá{" "}
+              Quản lý{" "}
               <span className="relative whitespace-nowrap">
                 <span
                   className="bg-clip-text text-transparent"
@@ -95,7 +95,7 @@ export default function HeroSection() {
                     backgroundImage: `linear-gradient(120deg, ${A.from}, ${A.to})`,
                   }}
                 >
-                  bảng lương
+                  trung tâm
                 </span>
                 <svg
                   className="absolute -bottom-1 left-0 h-2.5 w-full"
@@ -111,12 +111,16 @@ export default function HeroSection() {
                   />
                 </svg>
               </span>{" "}
-              cho trung tâm dạy thêm.
+              và trường học, gọn trong một nền tảng.
             </h1>
 
             <p className="mt-6 max-w-xl text-[17.5px] leading-relaxed text-slate-600">
-              Một nền tảng để quản lịch dạy, điểm danh, và tính lương giáo viên.
-              Chính xác đến từng buổi dạy, xuất Excel khi cần đối chiếu.
+              <span className="font-semibold text-slate-800">Trung tâm dạy thêm</span>{" "}
+              dùng để tính lương theo buổi đã dạy và xuất file Excel cho kế
+              toán.{" "}
+              <span className="font-semibold text-slate-800">Trường học</span>{" "}
+              dùng để xếp thời khoá biểu cả khối trong một bảng, in hoặc chia
+              sẻ mã QR cho học sinh.
             </p>
 
             <div className="mt-9 flex flex-wrap items-center gap-3">

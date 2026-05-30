@@ -29,14 +29,14 @@ const PLANS: PlanProps[] = [
     price: "Miễn phí",
     suffix: "trong giai đoạn beta",
     desc:
-      "Cho trung tâm muốn dùng thử + góp ý cải tiến trong giai đoạn beta.",
+      "Cho trung tâm hoặc trường học muốn dùng thử và góp ý cải tiến trong giai đoạn beta.",
     features: [
-      "Tính lương theo giờ / theo buổi / lương cứng / kết hợp",
-      "Lịch dạy đa giáo viên",
-      "Thời khoá biểu Ngày × Tiết × Giáo viên",
-      "Xuất Excel BẢNG LƯƠNG",
-      "Quản lý giáo viên + mời qua email",
-      "Hỗ trợ qua email (giờ hành chính)",
+      "Tính lương theo giờ / theo buổi / lương tháng cố định (trung tâm)",
+      "Thời khoá biểu cả khối trên một bảng Thứ × Tiết (trường học)",
+      "Lịch dạy nhiều giáo viên · cảnh báo trùng giờ",
+      "Xuất Excel bảng lương · in / chia sẻ mã QR thời khoá biểu",
+      "Quản lý giáo viên, mời qua email",
+      "Hỗ trợ qua email trong giờ hành chính",
     ],
     cta: { label: "Đăng ký dùng thử", href: "#demo" },
   },
@@ -49,11 +49,11 @@ const PLANS: PlanProps[] = [
       "Khi rời beta sẽ chuyển sang tính phí theo số giáo viên active. Báo trước ≥ 30 ngày.",
     highlight: true,
     features: [
-      "Mọi tính năng Early access",
-      "Phân vai trò Admin / Teacher",
-      "Nhiều admin trên cùng một trung tâm",
-      "Audit log cho điều chỉnh lương",
-      "Bulk import danh sách giáo viên / lớp / học sinh",
+      "Mọi tính năng của gói Early access",
+      "Phân vai trò quản trị viên / giáo viên",
+      "Nhiều quản trị viên cùng một tổ chức",
+      "Nhật ký thay đổi cho điều chỉnh lương",
+      "Nạp danh sách giáo viên / lớp / học sinh từ Excel",
     ],
     cta: { label: "Đặt lịch demo 15 phút", href: "#demo" },
   },
@@ -62,11 +62,11 @@ const PLANS: PlanProps[] = [
     range: "50+ GV hoặc cần tuỳ chỉnh",
     price: "Liên hệ",
     suffix: "",
-    desc: "Trung tâm lớn, có nhu cầu tuỳ chỉnh hoặc tích hợp.",
+    desc: "Trung tâm hoặc trường lớn, có nhu cầu tuỳ chỉnh hoặc tích hợp.",
     features: [
-      "Workshop onboarding tại trung tâm",
-      "Hỗ trợ migration từ Excel",
-      "Tuỳ chỉnh báo cáo theo trung tâm",
+      "Tập huấn sử dụng tại trung tâm / trường",
+      "Hỗ trợ chuyển dữ liệu từ Excel",
+      "Tuỳ chỉnh báo cáo theo nhu cầu",
       "Hợp đồng + xuất hoá đơn VAT",
     ],
     cta: { label: "Gửi email", href: "mailto:hello@vlearning.io" },
@@ -86,13 +86,16 @@ export default function Pricing() {
             · BẢNG GIÁ
           </p>
           <h2 className="mt-3 font-display text-[34px] font-bold leading-[1.1] tracking-tight text-slate-900 sm:text-[44px]">
-            Đang trong giai đoạn beta.
+            Đang trong giai đoạn dùng thử.
             <br />
-            <span className="text-slate-400">Miễn phí cho trung tâm dùng thử.</span>
+            <span className="text-slate-400">
+              Miễn phí cho trung tâm và trường học.
+            </span>
           </h2>
           <p className="mt-4 text-[15px] text-slate-600">
-            Khi rời beta sẽ chuyển sang tính phí theo số giáo viên active. Báo
-            trước ít nhất 30 ngày trước khi áp dụng — bạn không bị bất ngờ.
+            Khi kết thúc giai đoạn dùng thử sẽ chuyển sang tính phí theo số
+            giáo viên hoạt động. Chúng tôi sẽ báo trước ít nhất 30 ngày — bạn
+            không bị bất ngờ.
           </p>
         </div>
 

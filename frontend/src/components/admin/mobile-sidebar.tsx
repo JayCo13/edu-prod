@@ -52,6 +52,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Khóa học", href: "/dashboard/courses", icon: BookOpen, kinds: ["CENTER"] },
   { label: "Giáo viên", href: "/dashboard/teachers", icon: UserCog },
   { label: "Bảng lương", href: "/admin/payroll", icon: Wallet, kinds: ["CENTER"] },
+  { label: "Lương trường", href: "/admin/school-payroll", icon: Wallet, kinds: ["SCHOOL"] },
   { label: "Nhận lương", href: "/dashboard/payouts", icon: Banknote, hideForAdmin: true, kinds: ["CENTER"] },
   { label: "Thanh toán", href: "/admin/billing", icon: CreditCard },
   { label: "Cài đặt", href: "/admin/settings", icon: Settings },

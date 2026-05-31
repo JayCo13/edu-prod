@@ -69,6 +69,8 @@ const NAV_ITEMS: NavItem[] = [
   // Killer feature (PRD §5.8) — CENTER only. SCHOOL is a TKB utility, not a
   // payroll product.
   { label: "Bảng lương", href: "/admin/payroll", icon: Wallet, kinds: ["CENTER"] },
+  // SCHOOL-only: lương thừa giờ + dạy thay theo TT 05+21/2025.
+  { label: "Lương trường", href: "/admin/school-payroll", icon: Wallet, kinds: ["SCHOOL"] },
   // Teacher-side surface — admins shouldn't see this (they manage payroll
   // via /admin/payroll). Also CENTER-only since SCHOOL has no payroll.
   { label: "Nhận lương", href: "/dashboard/payouts", icon: Banknote, hideForAdmin: true, kinds: ["CENTER"] },

@@ -7,6 +7,7 @@ import {
   Clock,
   GraduationCap,
   LayoutGrid,
+  UserCheck,
 } from "lucide-react";
 
 /**
@@ -37,6 +38,12 @@ const TABS = [
     label: "Thời khoá biểu",
     icon: CalendarDays,
     hint: "Gán môn + giáo viên",
+  },
+  {
+    href: "/dashboard/timetable/substitutes",
+    label: "Dạy thay",
+    icon: UserCheck,
+    hint: "Phân công GV thay",
   },
 ];
 

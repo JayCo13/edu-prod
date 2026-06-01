@@ -8,9 +8,12 @@ import {
   ClipboardCheck,
   LogOut,
   Trash2,
+  UserPlus,
   Users,
   X,
 } from "lucide-react";
+
+import AddStudentsModal from "./AddStudentsModal";
 
 import {
   createClassSession,
@@ -52,7 +55,13 @@ export default function ClassDetailClient({ classId, className }: Props) {
   const [loading, setLoading] = useState(true);
   const [transferOf, setTransferOf] = useState<StudentInClass | null>(null);
   const [withdrawOf, setWithdrawOf] = useState<StudentInClass | null>(null);
+  const [addingStudents, setAddingStudents] = useState(false);
   const [reload, setReload] = useState(0);
+
+  const existingStudentIds = useMemo(
+    () => new Set(students.map((s) => s.id)),
+    [students],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -123,18 +132,37 @@ export default function ClassDetailClient({ classId, className }: Props) {
 
       {tab === "students" && (
         <>
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-xs text-slate-500">
+              {students.length === 0
+                ? "Lớp chưa có học sinh."
+                : `${students.length} học sinh đang theo học`}
+            </p>
+            <button
+              type="button"
+              onClick={() => setAddingStudents(true)}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:opacity-90"
+            >
+              <UserPlus className="h-3.5 w-3.5" />
+              Thêm học sinh
+            </button>
+          </div>
+
           {loading ? (
             <p className="rounded-2xl border border-dashed border-slate-200 px-3 py-8 text-center text-sm text-slate-500">
               Đang tải…
             </p>
           ) : students.length === 0 ? (
-            <p className="rounded-2xl border border-dashed border-slate-200 bg-white px-3 py-12 text-center text-sm text-slate-500">
-              Chưa có học sinh nào trong lớp này. Vào{" "}
-              <a href="/dashboard/students" className="font-semibold text-slate-700 underline">
-                Quản lý HS
-              </a>{" "}
-              để đăng ký.
-            </p>
+            <div className="rounded-2xl border border-dashed border-slate-200 bg-white px-3 py-12 text-center">
+              <Users className="mx-auto h-8 w-8 text-slate-300" />
+              <p className="mt-2 text-sm font-medium text-slate-700">
+                Chưa có học sinh nào trong lớp.
+              </p>
+              <p className="mt-1 text-xs text-slate-500">
+                Bấm <strong>Thêm học sinh</strong> để chọn từ danh sách (có
+                thể tick nhiều cùng lúc).
+              </p>
+            </div>
           ) : (
             <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
               <table className="w-full text-sm">
@@ -218,6 +246,23 @@ export default function ClassDetailClient({ classId, className }: Props) {
           onDone={() => {
             setWithdrawOf(null);
             setReload((k) => k + 1);
+          }}
+        />
+      )}
+      {addingStudents && (
+        <AddStudentsModal
+          classId={classId}
+          className={className}
+          existingStudentIds={existingStudentIds}
+          onClose={() => setAddingStudents(false)}
+          onDone={(added) => {
+            setAddingStudents(false);
+            setReload((k) => k + 1);
+            if (added > 0) {
+              // Quick visual confirm; no toast lib in repo
+              // eslint-disable-next-line no-alert
+              window.setTimeout(() => alert(`Đã thêm ${added} học sinh vào lớp.`), 100);
+            }
           }}
         />
       )}

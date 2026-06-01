@@ -478,6 +478,106 @@ export async function enrollStudent(
   }
 }
 
+// Bulk enroll — đăng ký nhiều HS vào 1 lớp với cùng tuition/billing.
+// Mỗi HS có thể edit sau qua updateEnrollment (chưa làm) hoặc xoá +
+// tạo lại. Đối với UX add hàng loạt từ trang lớp.
+export async function bulkEnrollStudents(input: {
+  class_id: string;
+  student_ids: string[];
+  enrolled_at: string;
+  tuition_amount_vnd?: number | null;
+  billing_cycle?: "MONTHLY" | "PER_SESSION" | "ANNUAL" | "ONE_TIME" | null;
+  payment_day?: number | null;
+  note?: string | null;
+}): Promise<
+  ActionResult<{
+    enrolled: number;
+    skipped_already_in_class: number;
+    not_found: number;
+  }>
+> {
+  try {
+    const { supabase, tenant } = await requireAdmin();
+    if (input.student_ids.length === 0) {
+      return { success: false, error: "Chưa chọn học sinh nào." };
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(input.enrolled_at)) {
+      return { success: false, error: "Ngày đăng ký không hợp lệ." };
+    }
+
+    // Validate class thuộc tenant.
+    const { data: cls } = await supabase
+      .from("classes")
+      .select("id")
+      .eq("id", input.class_id)
+      .eq("tenant_id", tenant.id)
+      .single();
+    if (!cls) return { success: false, error: "Lớp không tồn tại trong trung tâm." };
+
+    // Bóc HS thực sự thuộc tenant — 1 query.
+    const { data: stus } = await supabase
+      .from("students")
+      .select("id")
+      .eq("tenant_id", tenant.id)
+      .in("id", input.student_ids);
+    const validIds = new Set((stus ?? []).map((s) => s.id as string));
+    const notFound = input.student_ids.length - validIds.size;
+
+    // Lọc HS đã ACTIVE trong lớp — 1 query.
+    const { data: existing } = await supabase
+      .from("student_enrollments")
+      .select("student_id")
+      .eq("tenant_id", tenant.id)
+      .eq("class_id", input.class_id)
+      .eq("status", "ACTIVE")
+      .in("student_id", [...validIds]);
+    const alreadyIn = new Set(
+      (existing ?? []).map((e) => e.student_id as string),
+    );
+    const toInsert = [...validIds].filter((id) => !alreadyIn.has(id));
+
+    if (toInsert.length === 0) {
+      return {
+        success: true,
+        data: {
+          enrolled: 0,
+          skipped_already_in_class: alreadyIn.size,
+          not_found: notFound,
+        },
+      };
+    }
+
+    const rows = toInsert.map((sid) => ({
+      tenant_id: tenant.id,
+      student_id: sid,
+      class_id: input.class_id,
+      enrolled_at: input.enrolled_at,
+      tuition_amount_vnd: input.tuition_amount_vnd ?? null,
+      billing_cycle: input.billing_cycle ?? "MONTHLY",
+      payment_day: input.payment_day ?? null,
+      note: input.note ?? null,
+      status: "ACTIVE" as const,
+    }));
+
+    const { error } = await supabase.from("student_enrollments").insert(rows);
+    if (error) return { success: false, error: error.message };
+
+    revalidatePath("/dashboard/students");
+    revalidatePath("/dashboard/classes");
+    revalidatePath(`/dashboard/classes/${input.class_id}`);
+    return {
+      success: true,
+      data: {
+        enrolled: toInsert.length,
+        skipped_already_in_class: alreadyIn.size,
+        not_found: notFound,
+      },
+    };
+  } catch (e) {
+    return err(e);
+  }
+}
+
 // Chuyển lớp: enrollment cũ → TRANSFERRED, tạo enrollment mới ACTIVE.
 export async function transferStudent(input: {
   current_enrollment_id: string;

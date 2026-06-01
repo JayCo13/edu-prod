@@ -90,7 +90,7 @@ export async function signUpMultiTenant(
   const role = isSubdomain ? "student" : "teacher";
 
   // Create auth user — trigger reads metadata and creates profile atomically
-  const { error: authError } = await supabase.auth.signUp({
+  const { data, error: authError } = await supabase.auth.signUp({
     email,
     password,
     options: {
@@ -104,7 +104,33 @@ export async function signUpMultiTenant(
   });
 
   if (authError) {
+    // Một số config Supabase trả error string khi email tồn tại — bắt
+    // các pattern phổ biến và trả message VN dễ hiểu cho user.
+    const m = authError.message.toLowerCase();
+    if (isDuplicateEmailError(m)) {
+      return {
+        error:
+          "Email này đã được đăng ký. Hãy đăng nhập, hoặc dùng chức năng quên mật khẩu nếu bạn quên mật khẩu.",
+      };
+    }
+    if (m.includes("rate limit")) {
+      return {
+        error:
+          "Bạn đã thử đăng ký nhiều lần liên tiếp. Vui lòng đợi vài phút rồi thử lại.",
+      };
+    }
     return { error: authError.message };
+  }
+
+  // Supabase mặc định "Confirm email" ON → trả silent success khi email
+  // đã tồn tại (data.user có nhưng identities rỗng) để chống email
+  // enumeration. UX cần biết để báo rõ; sự đánh đổi enumeration ở B2B
+  // SaaS có thể chấp nhận — admin trung tâm dùng email công ty đã biết.
+  if (data?.user && (data.user.identities?.length ?? 0) === 0) {
+    return {
+      error:
+        "Email này đã được đăng ký. Hãy đăng nhập, hoặc dùng chức năng quên mật khẩu nếu bạn quên mật khẩu.",
+    };
   }
 
   // Teacher tenant creation is handled by /onboarding (not here)
@@ -113,6 +139,15 @@ export async function signUpMultiTenant(
     success: true,
     message: "Một email xác nhận đã được gửi. Vui lòng kiểm tra hộp thư của bạn.",
   };
+}
+
+function isDuplicateEmailError(messageLowercase: string): boolean {
+  return (
+    messageLowercase.includes("already registered") ||
+    messageLowercase.includes("already exists") ||
+    messageLowercase.includes("user already") ||
+    messageLowercase.includes("duplicate")
+  );
 }
 
 // ── Sign In (unchanged, works for both root and subdomain) ─────────────────

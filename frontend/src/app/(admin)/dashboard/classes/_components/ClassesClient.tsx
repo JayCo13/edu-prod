@@ -172,7 +172,7 @@ function ClassFormModal({
 }) {
   const [name, setName] = useState(initial?.name ?? "");
   const [grade, setGrade] = useState(initial?.grade_level?.toString() ?? "");
-  const [yearLabel, setYearLabel] = useState(initial?.year_label ?? `${new Date().getFullYear()}`);
+  const [yearLabel, setYearLabel] = useState(initial?.year_label ?? `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`);
   const [active, setActive] = useState(initial?.is_active ?? true);
 
   return (
@@ -181,21 +181,28 @@ function ClassFormModal({
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl"
+        className="w-full max-w-md rounded-3xl bg-white shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-start justify-between gap-3">
-          <h3 className="text-base font-bold text-slate-900">
-            {initial ? `Sửa: ${initial.name}` : "Tạo lớp mới"}
-          </h3>
+        {/* Header */}
+        <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-6 py-4">
+          <div>
+            <h3 className="text-base font-semibold text-slate-900">
+              {initial ? "Sửa lớp" : "Tạo lớp mới"}
+            </h3>
+            {initial && (
+              <p className="mt-0.5 truncate text-xs text-slate-500">{initial.name}</p>
+            )}
+          </div>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg p-1 text-slate-400 hover:bg-slate-100"
+            className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
           >
             <X className="h-4 w-4" />
           </button>
         </div>
+
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -206,64 +213,78 @@ function ClassFormModal({
               is_active: active,
             });
           }}
-          className="mt-4 space-y-3"
         >
-          <div className="space-y-1">
-            <Label>Tên lớp *</Label>
-            <input
+          {/* Body */}
+          <div className="space-y-4 px-6 py-5">
+            <Field
+              label="Tên lớp"
               required
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className={inputCls}
-              placeholder="vd. Toán 8 (Tối T2-T4)"
-            />
-          </div>
-          <div className="grid gap-2 sm:grid-cols-2">
-            <div className="space-y-1">
-              <Label>Khối lớp (1-12, có thể bỏ trống)</Label>
+              hint="Đặt tên dễ nhận diện, vd. có cả môn + lịch"
+            >
               <input
-                type="number"
-                min={1}
-                max={12}
-                value={grade}
-                onChange={(e) => setGrade(e.target.value)}
+                required
+                autoFocus
+                value={name}
+                onChange={(e) => setName(e.target.value)}
                 className={inputCls}
-                placeholder="vd. 8"
+                placeholder="Toán 8 — Tối T2/T4"
               />
+            </Field>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Khối lớp" hint="1–12, tuỳ chọn">
+                <input
+                  type="number"
+                  min={1}
+                  max={12}
+                  value={grade}
+                  onChange={(e) => setGrade(e.target.value)}
+                  className={inputCls}
+                  placeholder="8"
+                />
+              </Field>
+              <Field
+                label="Khoá / Năm"
+                hint={`vd. ${new Date().getFullYear()}-${new Date().getFullYear() + 1}`}
+              >
+                <input
+                  value={yearLabel}
+                  onChange={(e) => setYearLabel(e.target.value)}
+                  className={inputCls}
+                  placeholder="2025-2026"
+                />
+              </Field>
             </div>
-            <div className="space-y-1">
-              <Label>Khoá / Năm</Label>
-              <input
-                value={yearLabel}
-                onChange={(e) => setYearLabel(e.target.value)}
-                className={inputCls}
-                placeholder="vd. 2025-2026, Hè 2026"
-              />
-            </div>
+
+            {initial && (
+              <label className="flex cursor-pointer items-center gap-2.5 rounded-xl border border-slate-200 bg-slate-50/40 px-3 py-2.5 text-sm text-slate-700 hover:bg-slate-50">
+                <input
+                  type="checkbox"
+                  checked={active}
+                  onChange={(e) => setActive(e.target.checked)}
+                  className="h-4 w-4 rounded border-slate-300 accent-slate-900"
+                />
+                <span className="flex-1">Đang hoạt động</span>
+                <span className="text-xs text-slate-400">
+                  {active ? "Hiển thị trong danh sách" : "Ẩn khỏi danh sách"}
+                </span>
+              </label>
+            )}
           </div>
-          {initial && (
-            <label className="flex items-center gap-2 text-sm text-slate-700">
-              <input
-                type="checkbox"
-                checked={active}
-                onChange={(e) => setActive(e.target.checked)}
-                className="h-4 w-4"
-              />
-              Đang hoạt động
-            </label>
-          )}
-          <div className="flex justify-end gap-2 pt-2">
+
+          {/* Footer */}
+          <div className="flex items-center justify-end gap-2 rounded-b-3xl border-t border-slate-100 bg-slate-50/40 px-6 py-3.5">
             <button
               type="button"
               onClick={onClose}
-              className="rounded-xl px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100"
+              className="rounded-xl px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100"
             >
               Huỷ
             </button>
             <button
               type="submit"
-              disabled={pending}
-              className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:opacity-90 disabled:opacity-60"
+              disabled={pending || !name.trim()}
+              className="rounded-xl bg-slate-900 px-5 py-2 text-sm font-semibold text-white shadow-sm transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {pending ? "Đang lưu…" : "Lưu"}
             </button>
@@ -275,12 +296,29 @@ function ClassFormModal({
 }
 
 const inputCls =
-  "w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-slate-400";
+  "w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100 placeholder:text-slate-400";
 
-function Label({ children }: { children: React.ReactNode }) {
+function Field({
+  label,
+  required,
+  hint,
+  children,
+}: {
+  label: string;
+  required?: boolean;
+  hint?: string;
+  children: React.ReactNode;
+}) {
   return (
-    <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500">
+    <div className="space-y-1.5">
+      <div className="flex items-baseline justify-between gap-2">
+        <label className="block text-sm font-medium text-slate-800">
+          {label}
+          {required && <span className="ml-0.5 text-rose-500">*</span>}
+        </label>
+      </div>
       {children}
-    </label>
+      {hint && <p className="text-xs text-slate-400">{hint}</p>}
+    </div>
   );
 }

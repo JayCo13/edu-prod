@@ -102,7 +102,7 @@ function wrapInBrandedTemplate({
     <!-- Footer -->
     <div style="text-align:center;margin-top:32px;color:#94a3b8;font-size:12px;line-height:1.6;">
       <p>Email này được gửi bởi ${tenantName}</p>
-      <p>Powered by <a href="https://ticoclass.com" style="color:#6366f1;text-decoration:none;">TicoClass</a></p>
+      <p>Vận hành bởi <a href="https://ticoclass.com" style="color:#6366f1;text-decoration:none;">TicoClass</a></p>
     </div>
   </div>
 </body>
@@ -322,12 +322,13 @@ export function welcomeEmailContent(
   dashboardUrl: string,
 ): string {
   return `
-    <h2 style="font-size:20px;color:#0f172a;margin:0 0 8px;">Chào mừng đến ${tenantName}! 🎉</h2>
+    <h2 style="font-size:20px;color:#0f172a;margin:0 0 8px;">Chào mừng đến với ${tenantName}!</h2>
     <p style="color:#64748b;font-size:14px;line-height:1.6;margin:0 0 24px;">
-      Học viện của bạn đã sẵn sàng. Hãy bắt đầu tạo khóa học và mời học sinh tham gia.
+      Trung tâm của bạn đã sẵn sàng trên Edura. Bắt đầu bằng cách thêm
+      học sinh, tạo lớp và xếp lịch dạy — sau đó bảng lương sẽ tự tính.
     </p>
     <a href="${dashboardUrl}" style="display:inline-block;background:#0f172a;color:#ffffff;font-size:14px;font-weight:600;padding:12px 28px;border-radius:12px;text-decoration:none;">
-      Vào Dashboard
+      Vào trang quản trị
     </a>
   `;
 }

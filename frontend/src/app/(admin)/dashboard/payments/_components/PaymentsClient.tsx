@@ -1,0 +1,631 @@
+"use client";
+
+import { useEffect, useMemo, useState, useTransition } from "react";
+import {
+  AlertTriangle,
+  Calendar,
+  Check,
+  Plus,
+  Receipt,
+  X,
+} from "lucide-react";
+
+import {
+  cancelPayment,
+  createPayment,
+  listPaymentAlerts,
+  listStudents,
+  markPaymentPaid,
+  type PaymentInput,
+} from "@/modules/students/actions";
+import {
+  PAYMENT_STATUS_LABEL,
+  type PaymentAlert,
+  type StudentRow,
+} from "@/modules/students/types";
+
+type Tab = "alerts" | "all" | "new";
+
+export default function PaymentsClient() {
+  const [tab, setTab] = useState<Tab>("alerts");
+  const [windowDays, setWindowDays] = useState(7);
+  const [alerts, setAlerts] = useState<PaymentAlert[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [markPay, setMarkPay] = useState<PaymentAlert | null>(null);
+  const [reload, setReload] = useState(0);
+  const [pending, startTransition] = useTransition();
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    listPaymentAlerts({ warningWindowDays: windowDays }).then((r) => {
+      if (cancelled) return;
+      if (r.success) setAlerts(r.data);
+      setLoading(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [windowDays, reload]);
+
+  const overdue = useMemo(() => alerts.filter((a) => a.days_until_due < 0), [alerts]);
+  const upcoming = useMemo(
+    () => alerts.filter((a) => a.days_until_due >= 0),
+    [alerts],
+  );
+  const totalOverdueVnd = overdue.reduce((s, a) => s + a.remaining_vnd, 0);
+  const totalUpcomingVnd = upcoming.reduce((s, a) => s + a.remaining_vnd, 0);
+
+  function handleCancel(p: PaymentAlert) {
+    if (!confirm(`Huỷ khoản thu ${p.payment.period_label || "này"} của ${p.student.display_name}?`)) {
+      return;
+    }
+    startTransition(async () => {
+      const r = await cancelPayment(p.payment.id);
+      if (r.success) setReload((k) => k + 1);
+      else alert(r.error);
+    });
+  }
+
+  return (
+    <div className="space-y-3">
+      {/* Tabs */}
+      <div className="flex flex-wrap gap-2">
+        <Tab active={tab === "alerts"} onClick={() => setTab("alerts")}>
+          <AlertTriangle className="mr-1 inline h-3.5 w-3.5" />
+          Cảnh báo ({overdue.length}+{upcoming.length})
+        </Tab>
+        <Tab active={tab === "new"} onClick={() => setTab("new")}>
+          <Plus className="mr-1 inline h-3.5 w-3.5" />
+          Tạo khoản thu
+        </Tab>
+      </div>
+
+      {tab === "alerts" && (
+        <>
+          {/* Stats */}
+          <div className="grid gap-2 sm:grid-cols-2">
+            <StatCard
+              tone="rose"
+              label="Quá hạn"
+              count={overdue.length}
+              total={totalOverdueVnd}
+            />
+            <StatCard
+              tone="amber"
+              label={`Sắp tới hạn (≤ ${windowDays} ngày)`}
+              count={upcoming.length}
+              total={totalUpcomingVnd}
+            />
+          </div>
+
+          <div className="flex items-center gap-2 text-xs">
+            <span className="text-slate-500">Cảnh báo trước</span>
+            <select
+              value={windowDays}
+              onChange={(e) => setWindowDays(Number(e.target.value))}
+              className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs outline-none focus:border-slate-400"
+            >
+              <option value={3}>3 ngày</option>
+              <option value={7}>7 ngày</option>
+              <option value={14}>14 ngày</option>
+              <option value={30}>30 ngày</option>
+            </select>
+          </div>
+
+          {loading ? (
+            <p className="rounded-2xl border border-dashed border-slate-200 px-3 py-8 text-center text-sm text-slate-500">
+              Đang tải…
+            </p>
+          ) : alerts.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-emerald-200 bg-emerald-50/40 px-3 py-12 text-center">
+              <Check className="mx-auto h-8 w-8 text-emerald-500" />
+              <p className="mt-2 text-sm font-semibold text-emerald-800">
+                Không có khoản thu nào quá hạn hoặc sắp tới hạn.
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
+              <table className="w-full text-sm">
+                <thead className="bg-slate-50/70 text-xs uppercase tracking-wide text-slate-500">
+                  <tr>
+                    <th className="px-3 py-2.5 text-left">Học sinh</th>
+                    <th className="px-3 py-2.5 text-left">Lớp</th>
+                    <th className="px-3 py-2.5 text-left">Kỳ</th>
+                    <th className="px-3 py-2.5 text-right">Số tiền còn</th>
+                    <th className="px-3 py-2.5 text-left">Hạn</th>
+                    <th className="px-3 py-2.5 text-left">Trạng thái</th>
+                    <th className="px-3 py-2.5 text-right">Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {alerts.map((a) => (
+                    <tr
+                      key={a.payment.id}
+                      className={
+                        a.days_until_due < 0
+                          ? "bg-rose-50/30"
+                          : a.days_until_due <= 3
+                            ? "bg-amber-50/30"
+                            : ""
+                      }
+                    >
+                      <td className="px-3 py-2.5">
+                        <div className="font-medium text-slate-900">
+                          {a.student.display_name}
+                        </div>
+                        <div className="text-xs text-slate-500 font-mono tabular-nums">
+                          {a.student.student_code}
+                          {a.student.parent_phone && ` · ${a.student.parent_phone}`}
+                        </div>
+                      </td>
+                      <td className="px-3 py-2.5 text-slate-700">
+                        {a.class_name ?? "—"}
+                      </td>
+                      <td className="px-3 py-2.5 text-slate-700">
+                        {a.payment.period_label || "—"}
+                      </td>
+                      <td className="px-3 py-2.5 text-right font-mono font-bold tabular-nums text-slate-900">
+                        {formatVnd(a.remaining_vnd)}
+                      </td>
+                      <td className="px-3 py-2.5 font-mono tabular-nums">
+                        <div className="text-slate-700">{formatDate(a.payment.due_date)}</div>
+                        <div
+                          className={`text-xs ${
+                            a.days_until_due < 0
+                              ? "font-bold text-rose-700"
+                              : a.days_until_due <= 3
+                                ? "font-semibold text-amber-700"
+                                : "text-slate-500"
+                          }`}
+                        >
+                          {a.days_until_due < 0
+                            ? `Quá hạn ${Math.abs(a.days_until_due)} ngày`
+                            : a.days_until_due === 0
+                              ? "Hôm nay"
+                              : `Còn ${a.days_until_due} ngày`}
+                        </div>
+                      </td>
+                      <td className="px-3 py-2.5">
+                        <StatusBadge status={a.payment.status} />
+                      </td>
+                      <td className="px-3 py-2.5">
+                        <div className="flex justify-end gap-1">
+                          <button
+                            type="button"
+                            onClick={() => setMarkPay(a)}
+                            disabled={pending}
+                            className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-2 py-1 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-50"
+                          >
+                            <Check className="h-3 w-3" />
+                            Đã thu
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleCancel(a)}
+                            className="rounded-lg p-1 text-slate-400 hover:bg-slate-100"
+                            title="Huỷ khoản thu"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
+      )}
+
+      {tab === "new" && (
+        <NewPaymentForm
+          onCreated={() => {
+            setTab("alerts");
+            setReload((k) => k + 1);
+          }}
+        />
+      )}
+
+      {markPay && (
+        <MarkPaidModal
+          alert={markPay}
+          onClose={() => setMarkPay(null)}
+          onDone={() => {
+            setMarkPay(null);
+            setReload((k) => k + 1);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function StatCard({
+  tone,
+  label,
+  count,
+  total,
+}: {
+  tone: "rose" | "amber";
+  label: string;
+  count: number;
+  total: number;
+}) {
+  const colors =
+    tone === "rose"
+      ? "border-rose-200 bg-rose-50/40 text-rose-800"
+      : "border-amber-200 bg-amber-50/40 text-amber-800";
+  return (
+    <div className={`rounded-2xl border p-3 ${colors}`}>
+      <p className="font-mono text-[10px] font-semibold uppercase tracking-wide opacity-80">
+        {label}
+      </p>
+      <p className="mt-1 font-mono text-2xl font-bold tabular-nums">{count}</p>
+      <p className="mt-0.5 font-mono text-xs tabular-nums opacity-80">
+        Tổng: {formatVnd(total)}
+      </p>
+    </div>
+  );
+}
+
+function Tab({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-xl px-3.5 py-2 text-sm font-semibold transition ${
+        active
+          ? "bg-slate-900 text-white shadow-sm"
+          : "bg-white text-slate-600 ring-1 ring-slate-200 hover:bg-slate-50"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+function StatusBadge({ status }: { status: string }) {
+  const map: Record<string, string> = {
+    PENDING: "bg-slate-100 text-slate-600",
+    PARTIAL: "bg-amber-100 text-amber-700",
+    OVERDUE: "bg-rose-100 text-rose-700",
+    PAID: "bg-emerald-100 text-emerald-700",
+    CANCELLED: "bg-slate-200 text-slate-500 line-through",
+  };
+  return (
+    <span
+      className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${map[status] ?? "bg-slate-100 text-slate-600"}`}
+    >
+      {PAYMENT_STATUS_LABEL[status as keyof typeof PAYMENT_STATUS_LABEL] ?? status}
+    </span>
+  );
+}
+
+function NewPaymentForm({ onCreated }: { onCreated: () => void }) {
+  const [students, setStudents] = useState<StudentRow[]>([]);
+  const [studentSearch, setStudentSearch] = useState("");
+  const [studentId, setStudentId] = useState("");
+  const [amount, setAmount] = useState("");
+  const [dueDate, setDueDate] = useState(() => {
+    const d = new Date();
+    d.setMonth(d.getMonth() + 1);
+    d.setDate(5);
+    return d.toISOString().slice(0, 10);
+  });
+  const [period, setPeriod] = useState("");
+  const [note, setNote] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  useEffect(() => {
+    listStudents().then((r) => {
+      if (r.success) setStudents(r.data);
+    });
+  }, []);
+
+  const filteredStudents = useMemo(() => {
+    if (!studentSearch.trim()) return students.slice(0, 50);
+    const q = studentSearch.toLowerCase();
+    return students
+      .filter(
+        (s) =>
+          s.display_name.toLowerCase().includes(q) ||
+          s.student_code.toLowerCase().includes(q) ||
+          (s.parent_phone ?? "").includes(q),
+      )
+      .slice(0, 50);
+  }, [students, studentSearch]);
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    if (!studentId) {
+      setError("Chọn học sinh.");
+      return;
+    }
+    const amountVnd = Number(amount.replace(/\D/g, ""));
+    if (!amountVnd) {
+      setError("Số tiền phải lớn hơn 0.");
+      return;
+    }
+    const input: PaymentInput = {
+      student_id: studentId,
+      amount_vnd: amountVnd,
+      due_date: dueDate,
+      period_label: period.trim(),
+      note: note.trim() || null,
+    };
+    startTransition(async () => {
+      const r = await createPayment(input);
+      if (r.success) {
+        onCreated();
+      } else setError(r.error);
+    });
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4">
+      <h3 className="text-base font-bold text-slate-900">
+        <Receipt className="mr-1 inline h-4 w-4" />
+        Tạo khoản thu mới
+      </h3>
+
+      <div className="space-y-1">
+        <Label>Học sinh *</Label>
+        <input
+          type="search"
+          placeholder="Tìm theo tên / mã / SĐT phụ huynh"
+          value={studentSearch}
+          onChange={(e) => setStudentSearch(e.target.value)}
+          className={inputCls}
+        />
+        <select
+          value={studentId}
+          onChange={(e) => setStudentId(e.target.value)}
+          required
+          size={Math.min(5, filteredStudents.length || 1) + 1}
+          className={`${inputCls} mt-1 h-auto`}
+        >
+          <option value="">— Chọn từ danh sách —</option>
+          {filteredStudents.map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.student_code} · {s.display_name}
+              {s.parent_phone ? ` · ${s.parent_phone}` : ""}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="grid gap-2 sm:grid-cols-2">
+        <div className="space-y-1">
+          <Label>Số tiền (đ) *</Label>
+          <input
+            type="text"
+            inputMode="numeric"
+            required
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            placeholder="1.500.000"
+            className={inputCls}
+          />
+        </div>
+        <div className="space-y-1">
+          <Label>
+            <Calendar className="mr-1 inline h-3 w-3" />
+            Hạn đóng *
+          </Label>
+          <input
+            type="date"
+            required
+            value={dueDate}
+            onChange={(e) => setDueDate(e.target.value)}
+            className={inputCls}
+          />
+        </div>
+      </div>
+
+      <div className="space-y-1">
+        <Label>Kỳ học phí</Label>
+        <input
+          value={period}
+          onChange={(e) => setPeriod(e.target.value)}
+          placeholder="vd. Tháng 6/2026, Khoá Hè 2026"
+          className={inputCls}
+        />
+      </div>
+
+      <div className="space-y-1">
+        <Label>Ghi chú</Label>
+        <textarea
+          rows={2}
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          className={inputCls}
+        />
+      </div>
+
+      {error && (
+        <p className="rounded-xl border border-rose-200 bg-rose-50 p-2 text-xs text-rose-700">
+          {error}
+        </p>
+      )}
+
+      <button
+        type="submit"
+        disabled={pending}
+        className="w-full rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:opacity-90 disabled:opacity-60"
+      >
+        {pending ? "Đang tạo…" : "Tạo khoản thu"}
+      </button>
+    </form>
+  );
+}
+
+function MarkPaidModal({
+  alert,
+  onClose,
+  onDone,
+}: {
+  alert: PaymentAlert;
+  onClose: () => void;
+  onDone: () => void;
+}) {
+  const [amount, setAmount] = useState(alert.remaining_vnd.toString());
+  const [method, setMethod] = useState("CASH");
+  const [receipt, setReceipt] = useState("");
+  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    const amountVnd = Number(amount.replace(/\D/g, ""));
+    if (!amountVnd || amountVnd <= 0) {
+      setError("Số tiền phải lớn hơn 0.");
+      return;
+    }
+    if (amountVnd > alert.remaining_vnd) {
+      setError(`Số tiền không vượt quá ${formatVnd(alert.remaining_vnd)} còn nợ.`);
+      return;
+    }
+    startTransition(async () => {
+      const r = await markPaymentPaid({
+        payment_id: alert.payment.id,
+        amount_vnd: amountVnd,
+        paid_date: date,
+        method,
+        receipt_no: receipt.trim() || undefined,
+      });
+      if (r.success) onDone();
+      else setError(r.error);
+    });
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-3">
+          <h3 className="text-base font-bold text-slate-900">Đánh dấu đã thu</h3>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg p-1 text-slate-400 hover:bg-slate-100"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <p className="mt-1 text-xs text-slate-500">
+          <span className="font-mono">{alert.student.student_code}</span> ·{" "}
+          {alert.student.display_name}
+          {alert.payment.period_label && ` · ${alert.payment.period_label}`}
+        </p>
+        <div className="mt-3 rounded-xl bg-slate-50 p-2 text-xs text-slate-600">
+          Còn nợ: <strong className="font-mono">{formatVnd(alert.remaining_vnd)}</strong>{" "}
+          / {formatVnd(alert.payment.amount_vnd)}
+        </div>
+
+        <form onSubmit={handleSubmit} className="mt-3 space-y-3">
+          <div className="space-y-1">
+            <Label>Số tiền thu</Label>
+            <input
+              type="text"
+              inputMode="numeric"
+              required
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              className={inputCls}
+            />
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <div className="space-y-1">
+              <Label>Hình thức</Label>
+              <select value={method} onChange={(e) => setMethod(e.target.value)} className={inputCls}>
+                <option value="CASH">Tiền mặt</option>
+                <option value="BANK_TRANSFER">Chuyển khoản</option>
+                <option value="MOMO">MoMo</option>
+                <option value="ZALOPAY">ZaloPay</option>
+                <option value="OTHER">Khác</option>
+              </select>
+            </div>
+            <div className="space-y-1">
+              <Label>Ngày thu</Label>
+              <input
+                type="date"
+                required
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                className={inputCls}
+              />
+            </div>
+          </div>
+          <div className="space-y-1">
+            <Label>Số biên lai (tuỳ chọn)</Label>
+            <input
+              value={receipt}
+              onChange={(e) => setReceipt(e.target.value)}
+              className={inputCls}
+              placeholder="vd. BL-2026-0142"
+            />
+          </div>
+          {error && (
+            <p className="rounded-xl border border-rose-200 bg-rose-50 p-2 text-xs text-rose-700">
+              {error}
+            </p>
+          )}
+          <div className="flex justify-end gap-2 pt-1">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-xl px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100"
+            >
+              Huỷ
+            </button>
+            <button
+              type="submit"
+              disabled={pending}
+              className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:opacity-90 disabled:opacity-60"
+            >
+              {pending ? "Đang ghi…" : "Ghi nhận đã thu"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+const inputCls =
+  "w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-slate-400";
+
+function Label({ children }: { children: React.ReactNode }) {
+  return (
+    <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500">
+      {children}
+    </label>
+  );
+}
+
+function formatVnd(n: number): string {
+  return new Intl.NumberFormat("vi-VN").format(n) + "đ";
+}
+function formatDate(s: string): string {
+  const [y, m, d] = s.split("-");
+  return `${d}/${m}/${y}`;
+}

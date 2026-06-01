@@ -11,6 +11,9 @@ import {
   CalendarDays,
   CreditCard,
   UserCog,
+  Users,
+  GraduationCap,
+  Receipt,
   Settings,
   ChevronsLeft,
   Wallet,
@@ -59,6 +62,12 @@ const NAV_ITEMS: NavItem[] = [
   // SCHOOL-only: fixed weekly Mon–Sat × period × teacher grid (PRD §5.5).
   // Generates exportable timetable; doesn't drive payroll.
   { label: "Thời khoá biểu", href: "/dashboard/timetable", icon: CalendarDays, kinds: ["SCHOOL"] },
+  // CENTER-only: quản lý học sinh + Excel import. Mã HS auto + lịch sử lớp.
+  { label: "Học sinh", href: "/dashboard/students", icon: Users, kinds: ["CENTER"] },
+  // CENTER-only: lớp học (HS được đăng ký vào).
+  { label: "Lớp học", href: "/dashboard/classes", icon: GraduationCap, kinds: ["CENTER"] },
+  // CENTER-only: học phí — sắp tới hạn / quá hạn cảnh báo + ghi nhận thu.
+  { label: "Học phí", href: "/dashboard/payments", icon: Receipt, kinds: ["CENTER"] },
   // Admin-managed catalog. CENTER uses it for class definitions; SCHOOL doesn't
   // need it (subjects live inside the timetable section).
   { label: "Khóa học", href: "/dashboard/courses", icon: BookOpen, kinds: ["CENTER"] },

@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import WidgetCard from "./components/WidgetCard";
 import EmptyState from "./components/EmptyState";
+import PaymentAlertBanner from "./components/PaymentAlertBanner";
 import { getAdminDashboardData } from "./admin-data";
 
 /**
@@ -77,6 +78,8 @@ export default async function AdminDashboard({ userName }: Props) {
           Dữ liệu trung tâm trong nháy mắt — buổi học, lương, và việc cần xử lý.
         </p>
       </header>
+
+      <PaymentAlertBanner />
 
       <div className="grid gap-5 md:grid-cols-2">
         {/* ── Hôm nay ────────────────────────────────────────────── */}

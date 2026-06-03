@@ -111,6 +111,8 @@ export default function PaymentsClient() {
               <option value={7}>7 ngày</option>
               <option value={14}>14 ngày</option>
               <option value={30}>30 ngày</option>
+              <option value={60}>60 ngày</option>
+              <option value={365}>Tất cả khoản chưa đóng</option>
             </select>
           </div>
 
@@ -222,10 +224,15 @@ export default function PaymentsClient() {
 
       {tab === "new" && (
         <NewPaymentForm
-          onCreated={() => {
+          onViewInAlerts={(daysAhead) => {
+            // Snap về 1 trong các option chuẩn để select hiển thị đúng.
+            const standardOptions = [3, 7, 14, 30, 60, 365];
+            const need = standardOptions.find((n) => n >= daysAhead) ?? 365;
+            setWindowDays(need);
             setTab("alerts");
             setReload((k) => k + 1);
           }}
+          onAnyChange={() => setReload((k) => k + 1)}
         />
       )}
 
@@ -312,7 +319,13 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-function NewPaymentForm({ onCreated }: { onCreated: () => void }) {
+function NewPaymentForm({
+  onViewInAlerts,
+  onAnyChange,
+}: {
+  onViewInAlerts: (daysAheadOfToday: number) => void;
+  onAnyChange: () => void;
+}) {
   const [students, setStudents] = useState<StudentRow[]>([]);
   const [studentSearch, setStudentSearch] = useState("");
   const [studentId, setStudentId] = useState("");
@@ -327,6 +340,12 @@ function NewPaymentForm({ onCreated }: { onCreated: () => void }) {
   const [note, setNote] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const [lastCreated, setLastCreated] = useState<{
+    studentName: string;
+    amountVnd: number;
+    dueDate: string;
+    daysAhead: number;
+  } | null>(null);
 
   useEffect(() => {
     listStudents().then((r) => {
@@ -366,10 +385,28 @@ function NewPaymentForm({ onCreated }: { onCreated: () => void }) {
       period_label: period.trim(),
       note: note.trim() || null,
     };
+    const studentName =
+      students.find((s) => s.id === studentId)?.display_name ?? "Học sinh";
     startTransition(async () => {
       const r = await createPayment(input);
       if (r.success) {
-        onCreated();
+        // Tính số ngày từ today → due_date để hiển thị + để parent
+        // expand window khi user bấm "Xem trong cảnh báo".
+        const today = new Date();
+        const t0 = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+        const t1 = new Date(dueDate + "T00:00:00");
+        const daysAhead = Math.round((t1.getTime() - t0.getTime()) / 86400000);
+
+        setLastCreated({ studentName, amountVnd, dueDate, daysAhead });
+        // Reset form về trạng thái sẵn sàng tạo tiếp khoản mới
+        setStudentId("");
+        setStudentSearch("");
+        setAmount("");
+        setPeriod("");
+        setNote("");
+        setError(null);
+        // Báo parent reload (dashboard banner, alerts đếm…)
+        onAnyChange();
       } else setError(r.error);
     });
   }
@@ -380,6 +417,47 @@ function NewPaymentForm({ onCreated }: { onCreated: () => void }) {
         <Receipt className="mr-1 inline h-4 w-4" />
         Tạo khoản thu mới
       </h3>
+
+      {lastCreated && (
+        <div className="flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
+          <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+          <div className="min-w-0 flex-1">
+            <p className="font-semibold">Đã tạo khoản thu</p>
+            <p className="mt-0.5 text-xs leading-relaxed text-emerald-800">
+              <strong>{lastCreated.studentName}</strong> ·{" "}
+              <span className="font-mono">{formatVnd(lastCreated.amountVnd)}</span> · hạn{" "}
+              <span className="font-mono">{formatDate(lastCreated.dueDate)}</span>{" "}
+              {lastCreated.daysAhead < 0
+                ? `(quá hạn ${Math.abs(lastCreated.daysAhead)} ngày)`
+                : lastCreated.daysAhead === 0
+                  ? "(hôm nay)"
+                  : `(còn ${lastCreated.daysAhead} ngày)`}
+            </p>
+            {lastCreated.daysAhead > 7 && (
+              <p className="mt-1 text-xs text-emerald-700">
+                Khoản này còn xa hơn cửa sổ cảnh báo mặc định (7 ngày) nên
+                chưa hiện trong tab Cảnh báo.
+              </p>
+            )}
+            <div className="mt-2 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => onViewInAlerts(lastCreated.daysAhead)}
+                className="rounded-lg bg-emerald-600 px-3 py-1 text-xs font-semibold text-white hover:opacity-90"
+              >
+                Xem trong cảnh báo →
+              </button>
+              <button
+                type="button"
+                onClick={() => setLastCreated(null)}
+                className="rounded-lg border border-emerald-300 bg-white px-3 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-50"
+              >
+                Tạo khoản khác
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="space-y-1">
         <Label>Học sinh *</Label>

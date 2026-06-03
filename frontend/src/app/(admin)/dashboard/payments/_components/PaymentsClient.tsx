@@ -27,9 +27,36 @@ import { formatVndDigits, parseVndDigits } from "@/lib/format/vnd";
 
 type Tab = "alerts" | "all" | "new";
 
+// Default 30 ngày — phù hợp chu kỳ học phí theo tháng VN (admin tạo
+// khoản với hạn ~ ngày trong tháng kế tiếp = ~30 ngày). 7 ngày quá ngắn,
+// khoản học phí thường bị lọc ra.
+const DEFAULT_WINDOW_DAYS = 30;
+const STORAGE_KEY = "edura.payments.windowDays";
+
 export default function PaymentsClient() {
   const [tab, setTab] = useState<Tab>("alerts");
-  const [windowDays, setWindowDays] = useState(7);
+  // Khởi tạo từ localStorage để F5 không reset choice của admin. Đặt
+  // sau mount tránh hydration mismatch (server render = default).
+  const [windowDays, setWindowDays] = useState(DEFAULT_WINDOW_DAYS);
+  const [windowReady, setWindowReady] = useState(false);
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(STORAGE_KEY);
+      const n = raw ? Number(raw) : NaN;
+      if (Number.isFinite(n) && n > 0) setWindowDays(n);
+    } catch {
+      /* ignore */
+    }
+    setWindowReady(true);
+  }, []);
+  useEffect(() => {
+    if (!windowReady) return;
+    try {
+      window.localStorage.setItem(STORAGE_KEY, String(windowDays));
+    } catch {
+      /* ignore */
+    }
+  }, [windowDays, windowReady]);
   const [alerts, setAlerts] = useState<PaymentAlert[]>([]);
   const [loading, setLoading] = useState(true);
   const [markPay, setMarkPay] = useState<PaymentAlert | null>(null);
@@ -37,6 +64,9 @@ export default function PaymentsClient() {
   const [pending, startTransition] = useTransition();
 
   useEffect(() => {
+    // Đợi localStorage đọc xong mới gọi action — tránh fire 2 lần
+    // (lần đầu với default, lần 2 với value đã restore).
+    if (!windowReady) return;
     let cancelled = false;
     setLoading(true);
     listPaymentAlerts({ warningWindowDays: windowDays }).then((r) => {
@@ -47,7 +77,7 @@ export default function PaymentsClient() {
     return () => {
       cancelled = true;
     };
-  }, [windowDays, reload]);
+  }, [windowDays, reload, windowReady]);
 
   const overdue = useMemo(() => alerts.filter((a) => a.days_until_due < 0), [alerts]);
   const upcoming = useMemo(
@@ -100,20 +130,24 @@ export default function PaymentsClient() {
             />
           </div>
 
-          <div className="flex items-center gap-2 text-xs">
-            <span className="text-slate-500">Cảnh báo trước</span>
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <span className="text-slate-500">Hiển thị khoản hạn trong</span>
             <select
               value={windowDays}
               onChange={(e) => setWindowDays(Number(e.target.value))}
               className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs outline-none focus:border-slate-400"
             >
-              <option value={3}>3 ngày</option>
-              <option value={7}>7 ngày</option>
-              <option value={14}>14 ngày</option>
-              <option value={30}>30 ngày</option>
-              <option value={60}>60 ngày</option>
+              <option value={3}>3 ngày tới</option>
+              <option value={7}>7 ngày tới</option>
+              <option value={14}>14 ngày tới</option>
+              <option value={30}>30 ngày tới</option>
+              <option value={60}>60 ngày tới</option>
               <option value={365}>Tất cả khoản chưa đóng</option>
             </select>
+            <span className="text-slate-400">·</span>
+            <span className="text-slate-500">
+              Lựa chọn được lưu lại — F5 không đổi.
+            </span>
           </div>
 
           {loading ? (

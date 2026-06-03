@@ -7,6 +7,7 @@ import { X } from "lucide-react";
 import { listClasses, type ClassRow } from "@/modules/classes/actions";
 import { enrollStudent } from "@/modules/students/actions";
 import type { StudentRow } from "@/modules/students/types";
+import { formatVndDigits, parseVndDigits } from "@/lib/format/vnd";
 
 interface Props {
   student: StudentRow;
@@ -45,7 +46,7 @@ export default function EnrollClassModal({ student, onClose, onDone }: Props) {
         student_id: student.id,
         class_id: classId,
         enrolled_at: enrolledAt,
-        tuition_amount_vnd: tuition ? Number(tuition.replace(/\D/g, "")) : null,
+        tuition_amount_vnd: tuition ? parseVndDigits(tuition) : null,
         billing_cycle: cycle,
         payment_day: cycle === "MONTHLY" ? Number(day) || null : null,
         note: note.trim() || null,
@@ -121,15 +122,20 @@ export default function EnrollClassModal({ student, onClose, onDone }: Props) {
               />
             </div>
             <div className="space-y-1">
-              <Label>Học phí (đ)</Label>
-              <input
-                type="text"
-                inputMode="numeric"
-                placeholder="vd. 1.500.000"
-                value={tuition}
-                onChange={(e) => setTuition(e.target.value)}
-                className={inputCls}
-              />
+              <Label>Học phí</Label>
+              <div className="relative">
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="1.500.000"
+                  value={tuition}
+                  onChange={(e) => setTuition(formatVndDigits(e.target.value))}
+                  className={`${inputCls} pr-8 font-mono tabular-nums`}
+                />
+                <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-400">
+                  đ
+                </span>
+              </div>
             </div>
           </div>
 

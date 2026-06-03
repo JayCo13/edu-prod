@@ -23,6 +23,7 @@ import {
   type PaymentAlert,
   type StudentRow,
 } from "@/modules/students/types";
+import { formatVndDigits, parseVndDigits } from "@/lib/format/vnd";
 
 type Tab = "alerts" | "all" | "new";
 
@@ -353,7 +354,7 @@ function NewPaymentForm({ onCreated }: { onCreated: () => void }) {
       setError("Chọn học sinh.");
       return;
     }
-    const amountVnd = Number(amount.replace(/\D/g, ""));
+    const amountVnd = parseVndDigits(amount);
     if (!amountVnd) {
       setError("Số tiền phải lớn hơn 0.");
       return;
@@ -408,16 +409,21 @@ function NewPaymentForm({ onCreated }: { onCreated: () => void }) {
 
       <div className="grid gap-2 sm:grid-cols-2">
         <div className="space-y-1">
-          <Label>Số tiền (đ) *</Label>
-          <input
-            type="text"
-            inputMode="numeric"
-            required
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            placeholder="1.500.000"
-            className={inputCls}
-          />
+          <Label>Số tiền *</Label>
+          <div className="relative">
+            <input
+              type="text"
+              inputMode="numeric"
+              required
+              value={amount}
+              onChange={(e) => setAmount(formatVndDigits(e.target.value))}
+              placeholder="1.500.000"
+              className={`${inputCls} pr-8 font-mono tabular-nums`}
+            />
+            <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-400">
+              đ
+            </span>
+          </div>
         </div>
         <div className="space-y-1">
           <Label>
@@ -480,7 +486,7 @@ function MarkPaidModal({
   onClose: () => void;
   onDone: () => void;
 }) {
-  const [amount, setAmount] = useState(alert.remaining_vnd.toString());
+  const [amount, setAmount] = useState(formatVndDigits(alert.remaining_vnd.toString()));
   const [method, setMethod] = useState("CASH");
   const [receipt, setReceipt] = useState("");
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
@@ -490,7 +496,7 @@ function MarkPaidModal({
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    const amountVnd = Number(amount.replace(/\D/g, ""));
+    const amountVnd = parseVndDigits(amount);
     if (!amountVnd || amountVnd <= 0) {
       setError("Số tiền phải lớn hơn 0.");
       return;
@@ -544,14 +550,19 @@ function MarkPaidModal({
         <form onSubmit={handleSubmit} className="mt-3 space-y-3">
           <div className="space-y-1">
             <Label>Số tiền thu</Label>
-            <input
-              type="text"
-              inputMode="numeric"
-              required
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              className={inputCls}
-            />
+            <div className="relative">
+              <input
+                type="text"
+                inputMode="numeric"
+                required
+                value={amount}
+                onChange={(e) => setAmount(formatVndDigits(e.target.value))}
+                className={`${inputCls} pr-8 font-mono tabular-nums`}
+              />
+              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-400">
+                đ
+              </span>
+            </div>
           </div>
           <div className="grid gap-2 sm:grid-cols-2">
             <div className="space-y-1">

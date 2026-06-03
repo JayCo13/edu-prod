@@ -5,8 +5,10 @@ import {
   ArrowLeftRight,
   CalendarCheck,
   CalendarPlus,
+  CalendarRange,
   ClipboardCheck,
   LogOut,
+  Receipt,
   Trash2,
   UserPlus,
   Users,
@@ -14,6 +16,8 @@ import {
 } from "lucide-react";
 
 import AddStudentsModal from "./AddStudentsModal";
+import BulkSessionsModal from "./BulkSessionsModal";
+import BulkPaymentsModal from "./BulkPaymentsModal";
 
 import {
   createClassSession,
@@ -56,6 +60,7 @@ export default function ClassDetailClient({ classId, className }: Props) {
   const [transferOf, setTransferOf] = useState<StudentInClass | null>(null);
   const [withdrawOf, setWithdrawOf] = useState<StudentInClass | null>(null);
   const [addingStudents, setAddingStudents] = useState(false);
+  const [bulkPaymentsOpen, setBulkPaymentsOpen] = useState(false);
   const [reload, setReload] = useState(0);
 
   const existingStudentIds = useMemo(
@@ -132,20 +137,31 @@ export default function ClassDetailClient({ classId, className }: Props) {
 
       {tab === "students" && (
         <>
-          <div className="flex items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="text-xs text-slate-500">
               {students.length === 0
                 ? "Lớp chưa có học sinh."
                 : `${students.length} học sinh đang theo học`}
             </p>
-            <button
-              type="button"
-              onClick={() => setAddingStudents(true)}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:opacity-90"
-            >
-              <UserPlus className="h-3.5 w-3.5" />
-              Thêm học sinh
-            </button>
+            <div className="flex flex-wrap gap-1.5">
+              <button
+                type="button"
+                onClick={() => setBulkPaymentsOpen(true)}
+                disabled={students.length === 0}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <Receipt className="h-3.5 w-3.5" />
+                Tạo khoản thu hàng tháng
+              </button>
+              <button
+                type="button"
+                onClick={() => setAddingStudents(true)}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:opacity-90"
+              >
+                <UserPlus className="h-3.5 w-3.5" />
+                Thêm học sinh
+              </button>
+            </div>
           </div>
 
           {loading ? (
@@ -263,6 +279,21 @@ export default function ClassDetailClient({ classId, className }: Props) {
               // eslint-disable-next-line no-alert
               window.setTimeout(() => alert(`Đã thêm ${added} học sinh vào lớp.`), 100);
             }
+          }}
+        />
+      )}
+      {bulkPaymentsOpen && (
+        <BulkPaymentsModal
+          classId={classId}
+          className={className}
+          onClose={() => setBulkPaymentsOpen(false)}
+          onDone={(created) => {
+            setBulkPaymentsOpen(false);
+            // eslint-disable-next-line no-alert
+            window.setTimeout(
+              () => alert(`Đã tạo ${created} khoản thu hàng tháng.`),
+              100,
+            );
           }}
         />
       )}
@@ -647,6 +678,7 @@ function SessionsTab({
   const [sessions, setSessions] = useState<ClassSessionRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
+  const [bulkCreating, setBulkCreating] = useState(false);
   const [attendanceFor, setAttendanceFor] = useState<ClassSessionRow | null>(null);
   const [reload, setReload] = useState(0);
   const [pending, startTransition] = useTransition();
@@ -675,19 +707,29 @@ function SessionsTab({
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-xs text-slate-500">
           Tạo buổi học cho lớp <strong>{className}</strong>, sau đó điểm danh
-          từng buổi. Số buổi đã có mặt được dùng để tính báo cáo tháng.
+          từng buổi.
         </p>
-        <button
-          type="button"
-          onClick={() => setCreating(true)}
-          className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:opacity-90"
-        >
-          <CalendarPlus className="h-3.5 w-3.5" />
-          Tạo buổi học
-        </button>
+        <div className="flex flex-wrap gap-1.5">
+          <button
+            type="button"
+            onClick={() => setBulkCreating(true)}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50"
+          >
+            <CalendarRange className="h-3.5 w-3.5" />
+            Tạo hàng loạt
+          </button>
+          <button
+            type="button"
+            onClick={() => setCreating(true)}
+            className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:opacity-90"
+          >
+            <CalendarPlus className="h-3.5 w-3.5" />
+            Tạo 1 buổi
+          </button>
+        </div>
       </div>
 
       {loading ? (
@@ -761,6 +803,22 @@ function SessionsTab({
           onDone={() => {
             setCreating(false);
             setReload((k) => k + 1);
+          }}
+        />
+      )}
+      {bulkCreating && (
+        <BulkSessionsModal
+          classId={classId}
+          className={className}
+          onClose={() => setBulkCreating(false)}
+          onDone={(created) => {
+            setBulkCreating(false);
+            setReload((k) => k + 1);
+            // eslint-disable-next-line no-alert
+            window.setTimeout(
+              () => alert(`Đã tạo ${created} buổi học.`),
+              100,
+            );
           }}
         />
       )}

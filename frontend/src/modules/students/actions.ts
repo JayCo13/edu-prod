@@ -792,6 +792,297 @@ export async function markPaymentPaid(input: {
   }
 }
 
+// Bulk generate khoản thu cho enrollment MONTHLY trong khoảng [start, end].
+// Dành cho admin tạo trước 3-6 tháng học phí cho cả lớp.
+//
+// Logic:
+//   • Lấy enrollment ACTIVE (filter class_id nếu có)
+//   • Bỏ qua enrollment billing_cycle ≠ MONTHLY (PER_SESSION/ANNUAL
+//     có model khác)
+//   • Bỏ qua enrollment tuition_amount_vnd null/0
+//   • Mỗi tháng → due_date = year-month-payment_day (clamp ngày cuối
+//     tháng nếu payment_day vượt — vd. 31 cho tháng 2 → 28/29)
+//   • Dedup: nếu (student_id, due_date) đã có payment → skip
+//   • Sinh period_label tự động "Tháng MM/YYYY"
+const BulkPaymentsSchema = z
+  .object({
+    class_id: z.string().uuid().optional(),
+    start_month: z.string().regex(/^\d{4}-\d{2}$/),
+    end_month: z.string().regex(/^\d{4}-\d{2}$/),
+    default_payment_day: z.number().int().min(1).max(31).optional(),
+  })
+  .refine((d) => d.start_month <= d.end_month, {
+    message: "Tháng bắt đầu phải ≤ tháng kết thúc.",
+  });
+
+export type BulkPaymentsInput = z.input<typeof BulkPaymentsSchema>;
+
+function monthsBetween(start: string, end: string): string[] {
+  const out: string[] = [];
+  const [sy, sm] = start.split("-").map(Number);
+  const [ey, em] = end.split("-").map(Number);
+  let y = sy;
+  let m = sm;
+  while (y < ey || (y === ey && m <= em)) {
+    out.push(`${y}-${String(m).padStart(2, "0")}`);
+    m++;
+    if (m > 12) {
+      m = 1;
+      y++;
+    }
+    if (out.length > 24) break; // cap 24 tháng
+  }
+  return out;
+}
+
+function clampDayOfMonth(year: number, month1: number, day: number): number {
+  const last = new Date(year, month1, 0).getDate(); // month1 = 1-12
+  return Math.min(day, last);
+}
+
+export async function previewBulkPayments(input: BulkPaymentsInput): Promise<
+  ActionResult<{
+    months: string[];
+    eligible_enrollments: number;
+    will_create: number;
+    will_skip_existing: number;
+    skip_no_tuition: number;
+    skip_non_monthly: number;
+  }>
+> {
+  try {
+    const { supabase, tenant } = await requireAdmin();
+    const parsed = BulkPaymentsSchema.parse(input);
+    const months = monthsBetween(parsed.start_month, parsed.end_month);
+
+    // Lấy enrollments ACTIVE — chuẩn bị filter theo class nếu có
+    let q = supabase
+      .from("student_enrollments")
+      .select("id, student_id, tuition_amount_vnd, billing_cycle, payment_day")
+      .eq("tenant_id", tenant.id)
+      .eq("status", "ACTIVE");
+    if (parsed.class_id) q = q.eq("class_id", parsed.class_id);
+    const { data: enrs, error: enrErr } = await q;
+    if (enrErr) return { success: false, error: enrErr.message };
+
+    const list = (enrs ?? []) as Array<{
+      id: string;
+      student_id: string;
+      tuition_amount_vnd: number | null;
+      billing_cycle: string | null;
+      payment_day: number | null;
+    }>;
+    const monthly = list.filter((e) => (e.billing_cycle ?? "MONTHLY") === "MONTHLY");
+    const skipNonMonthly = list.length - monthly.length;
+    const eligible = monthly.filter(
+      (e) => (e.tuition_amount_vnd ?? 0) > 0,
+    );
+    const skipNoTuition = monthly.length - eligible.length;
+
+    // Build target due dates per enrollment
+    const targets: Array<{ enrollment_id: string; student_id: string; due_date: string }> = [];
+    for (const e of eligible) {
+      const payDay =
+        e.payment_day ?? parsed.default_payment_day ?? 5;
+      for (const ym of months) {
+        const [y, m] = ym.split("-").map(Number);
+        const day = clampDayOfMonth(y, m, payDay);
+        const due = `${ym}-${String(day).padStart(2, "0")}`;
+        targets.push({
+          enrollment_id: e.id,
+          student_id: e.student_id,
+          due_date: due,
+        });
+      }
+    }
+
+    if (targets.length === 0) {
+      return {
+        success: true,
+        data: {
+          months,
+          eligible_enrollments: eligible.length,
+          will_create: 0,
+          will_skip_existing: 0,
+          skip_no_tuition: skipNoTuition,
+          skip_non_monthly: skipNonMonthly,
+        },
+      };
+    }
+
+    // Check existing
+    const studentIds = [...new Set(targets.map((t) => t.student_id))];
+    const dueDates = [...new Set(targets.map((t) => t.due_date))];
+    const { data: existing } = await supabase
+      .from("student_payments")
+      .select("student_id, due_date")
+      .eq("tenant_id", tenant.id)
+      .in("student_id", studentIds)
+      .in("due_date", dueDates);
+    const existSet = new Set(
+      (existing ?? []).map(
+        (r: { student_id: string; due_date: string }) =>
+          `${r.student_id}::${r.due_date}`,
+      ),
+    );
+    const willCreate = targets.filter(
+      (t) => !existSet.has(`${t.student_id}::${t.due_date}`),
+    ).length;
+    const willSkip = targets.length - willCreate;
+
+    return {
+      success: true,
+      data: {
+        months,
+        eligible_enrollments: eligible.length,
+        will_create: willCreate,
+        will_skip_existing: willSkip,
+        skip_no_tuition: skipNoTuition,
+        skip_non_monthly: skipNonMonthly,
+      },
+    };
+  } catch (e) {
+    return err(e);
+  }
+}
+
+export async function bulkGeneratePayments(
+  input: BulkPaymentsInput,
+): Promise<
+  ActionResult<{
+    created: number;
+    skipped_existing: number;
+    skip_no_tuition: number;
+    skip_non_monthly: number;
+  }>
+> {
+  try {
+    const { supabase, tenant } = await requireAdmin();
+    const parsed = BulkPaymentsSchema.parse(input);
+    const months = monthsBetween(parsed.start_month, parsed.end_month);
+
+    let q = supabase
+      .from("student_enrollments")
+      .select("id, student_id, tuition_amount_vnd, billing_cycle, payment_day")
+      .eq("tenant_id", tenant.id)
+      .eq("status", "ACTIVE");
+    if (parsed.class_id) q = q.eq("class_id", parsed.class_id);
+    const { data: enrs, error: enrErr } = await q;
+    if (enrErr) return { success: false, error: enrErr.message };
+
+    const list = (enrs ?? []) as Array<{
+      id: string;
+      student_id: string;
+      tuition_amount_vnd: number | null;
+      billing_cycle: string | null;
+      payment_day: number | null;
+    }>;
+    const monthly = list.filter((e) => (e.billing_cycle ?? "MONTHLY") === "MONTHLY");
+    const skipNonMonthly = list.length - monthly.length;
+    const eligible = monthly.filter((e) => (e.tuition_amount_vnd ?? 0) > 0);
+    const skipNoTuition = monthly.length - eligible.length;
+
+    type Target = {
+      enrollment_id: string;
+      student_id: string;
+      due_date: string;
+      amount: number;
+      period_label: string;
+    };
+
+    const targets: Target[] = [];
+    for (const e of eligible) {
+      const payDay = e.payment_day ?? parsed.default_payment_day ?? 5;
+      for (const ym of months) {
+        const [y, m] = ym.split("-").map(Number);
+        const day = clampDayOfMonth(y, m, payDay);
+        const due = `${ym}-${String(day).padStart(2, "0")}`;
+        targets.push({
+          enrollment_id: e.id,
+          student_id: e.student_id,
+          due_date: due,
+          amount: Number(e.tuition_amount_vnd),
+          period_label: `Tháng ${String(m).padStart(2, "0")}/${y}`,
+        });
+      }
+    }
+
+    if (targets.length === 0) {
+      return {
+        success: true,
+        data: {
+          created: 0,
+          skipped_existing: 0,
+          skip_no_tuition: skipNoTuition,
+          skip_non_monthly: skipNonMonthly,
+        },
+      };
+    }
+
+    // Dedup vs existing (student_id, due_date)
+    const studentIds = [...new Set(targets.map((t) => t.student_id))];
+    const dueDates = [...new Set(targets.map((t) => t.due_date))];
+    const { data: existing } = await supabase
+      .from("student_payments")
+      .select("student_id, due_date")
+      .eq("tenant_id", tenant.id)
+      .in("student_id", studentIds)
+      .in("due_date", dueDates);
+    const existSet = new Set(
+      (existing ?? []).map(
+        (r: { student_id: string; due_date: string }) =>
+          `${r.student_id}::${r.due_date}`,
+      ),
+    );
+    const toInsert = targets.filter(
+      (t) => !existSet.has(`${t.student_id}::${t.due_date}`),
+    );
+
+    if (toInsert.length === 0) {
+      return {
+        success: true,
+        data: {
+          created: 0,
+          skipped_existing: targets.length,
+          skip_no_tuition: skipNoTuition,
+          skip_non_monthly: skipNonMonthly,
+        },
+      };
+    }
+
+    const rows = toInsert.map((t) => ({
+      tenant_id: tenant.id,
+      student_id: t.student_id,
+      enrollment_id: t.enrollment_id,
+      amount_vnd: t.amount,
+      due_date: t.due_date,
+      paid_amount_vnd: 0,
+      status: "PENDING" as const,
+      period_label: t.period_label,
+    }));
+
+    const { error: insErr } = await supabase
+      .from("student_payments")
+      .insert(rows);
+    if (insErr) return { success: false, error: insErr.message };
+
+    revalidatePath("/dashboard/students");
+    revalidatePath("/dashboard/classes");
+    revalidatePath("/dashboard/payments");
+    return {
+      success: true,
+      data: {
+        created: toInsert.length,
+        skipped_existing: targets.length - toInsert.length,
+        skip_no_tuition: skipNoTuition,
+        skip_non_monthly: skipNonMonthly,
+      },
+    };
+  } catch (e) {
+    return err(e);
+  }
+}
+
 export async function cancelPayment(id: string): Promise<ActionResult> {
   try {
     const { supabase, tenant } = await requireAdmin();

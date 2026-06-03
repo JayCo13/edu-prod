@@ -289,6 +289,140 @@ export async function createClassSession(
   }
 }
 
+// Tạo nhiều buổi cùng lúc theo lịch tuần — admin chọn:
+//   • Khung giờ (HH:MM) + thời lượng
+//   • Ngày trong tuần (T2..CN, multi-select)
+//   • Khoảng ngày: start_date → end_date
+// Engine sinh từng ngày trong range, lọc theo day-of-week. Cap 200
+// buổi/lần để tránh tạo nhầm hàng nghìn dòng.
+const BulkSessionsSchema = z.object({
+  class_id: z.string().uuid(),
+  title_template: z.string().trim().min(1).max(150),
+  // 0 = CN, 1 = T2, …, 6 = T7
+  days_of_week: z.array(z.number().int().min(0).max(6)).min(1).max(7),
+  start_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  end_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  time: z.string().regex(/^\d{2}:\d{2}$/), // "19:00" — local time VN
+  duration_minutes: z.number().int().min(15).max(720).default(90),
+});
+
+export type BulkSessionsInput = z.input<typeof BulkSessionsSchema>;
+
+// Tính các ngày YYYY-MM-DD trong range thoả day-of-week, không phụ
+// thuộc TZ server (dùng UTC iteration, day-of-week so với UTC).
+function datesInRangeByDow(
+  start: string,
+  end: string,
+  allowedDow: number[],
+): string[] {
+  const dates: string[] = [];
+  const startD = new Date(start + "T00:00:00Z");
+  const endD = new Date(end + "T00:00:00Z");
+  if (endD < startD) return [];
+  const cap = 365; // safety: range max 1 năm
+  let count = 0;
+  for (
+    let d = new Date(startD);
+    d <= endD && count <= cap;
+    d = new Date(d.getTime() + 86400000), count++
+  ) {
+    const dow = d.getUTCDay();
+    if (!allowedDow.includes(dow)) continue;
+    const yyyy = d.getUTCFullYear();
+    const mm = String(d.getUTCMonth() + 1).padStart(2, "0");
+    const dd = String(d.getUTCDate()).padStart(2, "0");
+    dates.push(`${yyyy}-${mm}-${dd}`);
+  }
+  return dates;
+}
+
+export async function previewBulkSessions(
+  input: BulkSessionsInput,
+): Promise<ActionResult<{ count: number; first_dates: string[]; last_dates: string[] }>> {
+  try {
+    await requireAdmin();
+    const parsed = BulkSessionsSchema.parse(input);
+    const dates = datesInRangeByDow(parsed.start_date, parsed.end_date, parsed.days_of_week);
+    return {
+      success: true,
+      data: {
+        count: dates.length,
+        first_dates: dates.slice(0, 3),
+        last_dates: dates.slice(-3),
+      },
+    };
+  } catch (e) {
+    return err(e);
+  }
+}
+
+export async function bulkCreateSessions(
+  input: BulkSessionsInput,
+): Promise<ActionResult<{ created: number }>> {
+  try {
+    const { supabase, tenant } = await requireAdmin();
+    const parsed = BulkSessionsSchema.parse(input);
+
+    const { data: cls } = await supabase
+      .from("classes")
+      .select("id")
+      .eq("id", parsed.class_id)
+      .eq("tenant_id", tenant.id)
+      .single();
+    if (!cls) return { success: false, error: "Lớp không tồn tại trong trung tâm." };
+
+    const dates = datesInRangeByDow(parsed.start_date, parsed.end_date, parsed.days_of_week);
+    if (dates.length === 0) {
+      return {
+        success: false,
+        error:
+          "Không có ngày nào trong khoảng đã chọn khớp với thứ trong tuần.",
+      };
+    }
+    if (dates.length > 200) {
+      return {
+        success: false,
+        error: `Sẽ tạo ${dates.length} buổi — vượt giới hạn 200. Thu hẹp khoảng ngày hoặc tách nhiều đợt.`,
+      };
+    }
+
+    const duration = parsed.duration_minutes ?? 90;
+    const rows = dates.map((dateStr, i) => {
+      const seqNo = i + 1;
+      // Title template hỗ trợ {n} = số thứ tự, {date} = DD/MM/YYYY VN.
+      const [yy, mm, dd] = dateStr.split("-");
+      const vnDate = `${dd}/${mm}/${yy}`;
+      const title = parsed.title_template
+        .replaceAll("{n}", String(seqNo))
+        .replaceAll("{date}", vnDate);
+
+      // Build ISO start_time với offset VN (+07:00) — không phụ thuộc
+      // TZ server. Postgres lưu UTC nên ISO chuẩn là đủ.
+      const startIso = `${dateStr}T${parsed.time}:00+07:00`;
+
+      return {
+        tenant_id: tenant.id,
+        class_id: parsed.class_id,
+        course_id: null,
+        title,
+        description: "",
+        start_time: startIso,
+        duration_minutes: duration,
+        meeting_url: "",
+      };
+    });
+
+    const { error } = await supabase.from("live_sessions").insert(rows);
+    if (error) return { success: false, error: error.message };
+
+    revalidatePath("/dashboard/classes");
+    revalidatePath(`/dashboard/classes/${parsed.class_id}`);
+    return { success: true, data: { created: rows.length } };
+  } catch (e) {
+    return err(e);
+  }
+}
+
 export async function deleteClassSession(id: string): Promise<ActionResult> {
   try {
     const { supabase, tenant } = await requireAdmin();

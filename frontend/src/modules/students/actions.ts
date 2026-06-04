@@ -206,6 +206,99 @@ export async function updateStudent(
   }
 }
 
+// Xoá hàng loạt HS — chia 2 nhóm:
+//   • Có lịch sử (enrollment) → soft delete (is_active=false)
+//   • Chưa có lịch sử → hard delete
+// Trả về cả 2 số để UI báo "X đã xoá, Y đã ngưng kích hoạt".
+export async function bulkDeleteStudents(input: {
+  student_ids: string[];
+}): Promise<
+  ActionResult<{ deleted: number; deactivated: number; errors: number }>
+> {
+  try {
+    const { supabase, tenant } = await requireAdmin();
+    if (input.student_ids.length === 0) {
+      return { success: false, error: "Chưa chọn học sinh nào." };
+    }
+
+    // Xác định HS nào có lịch sử
+    const { data: withHistory } = await supabase
+      .from("student_enrollments")
+      .select("student_id")
+      .eq("tenant_id", tenant.id)
+      .in("student_id", input.student_ids);
+    const hasHistory = new Set(
+      ((withHistory ?? []) as Array<{ student_id: string }>).map(
+        (r) => r.student_id,
+      ),
+    );
+
+    const toSoft = input.student_ids.filter((id) => hasHistory.has(id));
+    const toHard = input.student_ids.filter((id) => !hasHistory.has(id));
+
+    let deactivated = 0;
+    let deleted = 0;
+    let errors = 0;
+
+    if (toSoft.length > 0) {
+      const { error, count } = await supabase
+        .from("students")
+        .update({ is_active: false }, { count: "exact" })
+        .eq("tenant_id", tenant.id)
+        .in("id", toSoft);
+      if (error) errors += toSoft.length;
+      else deactivated = count ?? toSoft.length;
+    }
+    if (toHard.length > 0) {
+      const { error, count } = await supabase
+        .from("students")
+        .delete({ count: "exact" })
+        .eq("tenant_id", tenant.id)
+        .in("id", toHard);
+      if (error) {
+        // FK error → fallback soft delete
+        const { count: softCount } = await supabase
+          .from("students")
+          .update({ is_active: false }, { count: "exact" })
+          .eq("tenant_id", tenant.id)
+          .in("id", toHard);
+        deactivated += softCount ?? 0;
+      } else {
+        deleted = count ?? toHard.length;
+      }
+    }
+
+    revalidatePath("/dashboard/students");
+    return { success: true, data: { deleted, deactivated, errors } };
+  } catch (e) {
+    return err(e);
+  }
+}
+
+// Bật/tắt is_active hàng loạt — dùng cho "ngừng học tạm thời nguyên lớp"
+// hoặc kích hoạt lại nhóm HS đã ngưng.
+export async function bulkSetStudentActive(input: {
+  student_ids: string[];
+  is_active: boolean;
+}): Promise<ActionResult<{ updated: number }>> {
+  try {
+    const { supabase, tenant } = await requireAdmin();
+    if (input.student_ids.length === 0) {
+      return { success: false, error: "Chưa chọn học sinh nào." };
+    }
+    const { error, count } = await supabase
+      .from("students")
+      .update({ is_active: input.is_active }, { count: "exact" })
+      .eq("tenant_id", tenant.id)
+      .in("id", input.student_ids);
+    if (error) return { success: false, error: error.message };
+    revalidatePath("/dashboard/students");
+    return { success: true, data: { updated: count ?? input.student_ids.length } };
+  } catch (e) {
+    return err(e);
+  }
+}
+
 export async function deleteStudent(id: string): Promise<ActionResult> {
   try {
     const { supabase, tenant } = await requireAdmin();
@@ -1076,6 +1169,114 @@ export async function bulkGeneratePayments(
         skipped_existing: targets.length - toInsert.length,
         skip_no_tuition: skipNoTuition,
         skip_non_monthly: skipNonMonthly,
+      },
+    };
+  } catch (e) {
+    return err(e);
+  }
+}
+
+// Bulk huỷ — đặt status = CANCELLED, GIỮ history. Dùng khi admin tạo
+// nhầm hoặc HS nghỉ học không phải trả khoản đó.
+// Khoản đã PAID không nên huỷ — trả lỗi rõ nếu có.
+export async function bulkCancelPayments(input: {
+  payment_ids: string[];
+}): Promise<
+  ActionResult<{ cancelled: number; skipped_paid: number; errors: number }>
+> {
+  try {
+    const { supabase, tenant } = await requireAdmin();
+    if (input.payment_ids.length === 0) {
+      return { success: false, error: "Chưa chọn khoản nào." };
+    }
+
+    // Lọc khoản đã PAID — không cancel
+    const { data: paidRows } = await supabase
+      .from("student_payments")
+      .select("id, status")
+      .eq("tenant_id", tenant.id)
+      .in("id", input.payment_ids)
+      .eq("status", "PAID");
+    const paidSet = new Set(
+      ((paidRows ?? []) as Array<{ id: string }>).map((r) => r.id),
+    );
+    const toCancel = input.payment_ids.filter((id) => !paidSet.has(id));
+
+    if (toCancel.length === 0) {
+      return {
+        success: true,
+        data: { cancelled: 0, skipped_paid: paidSet.size, errors: 0 },
+      };
+    }
+
+    const { error, count } = await supabase
+      .from("student_payments")
+      .update({ status: "CANCELLED" }, { count: "exact" })
+      .eq("tenant_id", tenant.id)
+      .in("id", toCancel);
+    if (error) return { success: false, error: error.message };
+
+    revalidatePath("/dashboard/payments");
+    revalidatePath("/dashboard/students");
+    return {
+      success: true,
+      data: {
+        cancelled: count ?? toCancel.length,
+        skipped_paid: paidSet.size,
+        errors: 0,
+      },
+    };
+  } catch (e) {
+    return err(e);
+  }
+}
+
+// Bulk delete — XOÁ CỨNG, dùng khi tạo nhầm hàng loạt (vd. chạy
+// bulkGeneratePayments với tháng sai). Khoản đã PAID không xoá.
+export async function bulkDeletePayments(input: {
+  payment_ids: string[];
+}): Promise<
+  ActionResult<{ deleted: number; skipped_paid: number; errors: number }>
+> {
+  try {
+    const { supabase, tenant } = await requireAdmin();
+    if (input.payment_ids.length === 0) {
+      return { success: false, error: "Chưa chọn khoản nào." };
+    }
+
+    const { data: paidRows } = await supabase
+      .from("student_payments")
+      .select("id")
+      .eq("tenant_id", tenant.id)
+      .in("id", input.payment_ids)
+      .eq("status", "PAID");
+    const paidSet = new Set(
+      ((paidRows ?? []) as Array<{ id: string }>).map((r) => r.id),
+    );
+    const toDelete = input.payment_ids.filter((id) => !paidSet.has(id));
+
+    if (toDelete.length === 0) {
+      return {
+        success: true,
+        data: { deleted: 0, skipped_paid: paidSet.size, errors: 0 },
+      };
+    }
+
+    const { error, count } = await supabase
+      .from("student_payments")
+      .delete({ count: "exact" })
+      .eq("tenant_id", tenant.id)
+      .in("id", toDelete);
+    if (error) return { success: false, error: error.message };
+
+    revalidatePath("/dashboard/payments");
+    revalidatePath("/dashboard/students");
+    return {
+      success: true,
+      data: {
+        deleted: count ?? toDelete.length,
+        skipped_paid: paidSet.size,
+        errors: 0,
       },
     };
   } catch (e) {

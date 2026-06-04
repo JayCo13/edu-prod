@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import {
+  CheckCircle2,
+  CircleSlash,
   FileSpreadsheet,
   Pencil,
   Plus,
@@ -15,6 +17,8 @@ import { toast } from "sonner";
 
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import {
+  bulkDeleteStudents,
+  bulkSetStudentActive,
   createStudent,
   deleteStudent,
   listStudents,
@@ -40,6 +44,7 @@ export default function StudentsClient() {
   const [enrollFor, setEnrollFor] = useState<StudentRow | null>(null);
   const [pending, startTransition] = useTransition();
   const [reload, setReload] = useState(0);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     let cancelled = false;
@@ -107,6 +112,76 @@ export default function StudentsClient() {
     });
   }
 
+  // ── Multi-select bulk ops ─────────────────────────────────────────
+  function toggleSel(id: string) {
+    setSelected((p) => {
+      const n = new Set(p);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
+  }
+
+  function toggleAllVisible() {
+    setSelected((p) => {
+      if (filtered.every((s) => p.has(s.id))) {
+        const n = new Set(p);
+        filtered.forEach((s) => n.delete(s.id));
+        return n;
+      }
+      const n = new Set(p);
+      filtered.forEach((s) => n.add(s.id));
+      return n;
+    });
+  }
+
+  async function handleBulkDelete() {
+    const count = selected.size;
+    if (count === 0) return;
+    const ok = await confirm({
+      title: `Xoá ${count} học sinh?`,
+      description:
+        "HS chưa có lịch sử sẽ bị xoá cứng; HS đã có enrollment/payment sẽ chỉ đặt ngừng kích hoạt (giữ lịch sử).",
+      variant: "danger",
+      confirmLabel: `Xoá ${count}`,
+    });
+    if (!ok) return;
+    startTransition(async () => {
+      const r = await bulkDeleteStudents({ student_ids: [...selected] });
+      if (r.success) {
+        const { deleted, deactivated, errors } = r.data;
+        setSelected(new Set());
+        setReload((k) => k + 1);
+        const parts: string[] = [];
+        if (deleted > 0) parts.push(`${deleted} xoá`);
+        if (deactivated > 0) parts.push(`${deactivated} ngừng kích hoạt`);
+        if (errors > 0) parts.push(`${errors} lỗi`);
+        if (errors > 0) toast.error(`Hoàn tất: ${parts.join(" · ")}`);
+        else toast.success(`Hoàn tất: ${parts.join(" · ") || "không có thay đổi"}`);
+      } else toast.error(r.error);
+    });
+  }
+
+  async function handleBulkSetActive(active: boolean) {
+    const count = selected.size;
+    if (count === 0) return;
+    startTransition(async () => {
+      const r = await bulkSetStudentActive({
+        student_ids: [...selected],
+        is_active: active,
+      });
+      if (r.success) {
+        setSelected(new Set());
+        setReload((k) => k + 1);
+        toast.success(
+          active
+            ? `Đã kích hoạt ${r.data.updated} học sinh.`
+            : `Đã ngừng kích hoạt ${r.data.updated} học sinh.`,
+        );
+      } else toast.error(r.error);
+    });
+  }
+
   return (
     <div className="space-y-3">
       {/* Toolbar */}
@@ -139,14 +214,61 @@ export default function StudentsClient() {
         </button>
       </div>
 
-      {/* Stat */}
-      <div className="rounded-xl border border-slate-200 bg-slate-50/40 px-3 py-2 text-xs text-slate-600">
-        <Users className="mr-1.5 inline h-3.5 w-3.5" />
-        {filtered.length} học sinh
-        {search && rows.length !== filtered.length && (
-          <span className="ml-1 text-slate-400">(lọc từ {rows.length})</span>
-        )}
-      </div>
+      {/* Stat hoặc Bulk-action bar */}
+      {selected.size > 0 ? (
+        <div className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-indigo-200 bg-indigo-50/80 px-3 py-2 shadow-sm backdrop-blur">
+          <p className="text-sm font-semibold text-indigo-900">
+            Đã chọn <span className="font-mono">{selected.size}</span> / {rows.length}
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            <button
+              type="button"
+              onClick={() => setSelected(new Set())}
+              className="rounded-lg border border-indigo-200 bg-white px-2.5 py-1 text-xs font-semibold text-indigo-700 hover:bg-indigo-50"
+            >
+              Bỏ chọn
+            </button>
+            <button
+              type="button"
+              onClick={() => handleBulkSetActive(true)}
+              disabled={pending}
+              className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1 text-xs font-semibold text-white shadow-sm hover:opacity-90 disabled:opacity-50"
+            >
+              <CheckCircle2 className="h-3 w-3" />
+              Kích hoạt
+            </button>
+            <button
+              type="button"
+              onClick={() => handleBulkSetActive(false)}
+              disabled={pending}
+              className="inline-flex items-center gap-1 rounded-lg bg-slate-600 px-2.5 py-1 text-xs font-semibold text-white shadow-sm hover:opacity-90 disabled:opacity-50"
+            >
+              <CircleSlash className="h-3 w-3" />
+              Ngừng KH
+            </button>
+            <button
+              type="button"
+              onClick={handleBulkDelete}
+              disabled={pending}
+              className="inline-flex items-center gap-1 rounded-lg bg-rose-600 px-2.5 py-1 text-xs font-semibold text-white shadow-sm hover:opacity-90 disabled:opacity-50"
+            >
+              <Trash2 className="h-3 w-3" />
+              Xoá {selected.size}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="rounded-xl border border-slate-200 bg-slate-50/40 px-3 py-2 text-xs text-slate-600">
+          <Users className="mr-1.5 inline h-3.5 w-3.5" />
+          {filtered.length} học sinh
+          {search && rows.length !== filtered.length && (
+            <span className="ml-1 text-slate-400">(lọc từ {rows.length})</span>
+          )}
+          <span className="ml-2 text-slate-400">
+            · Tick checkbox để chọn nhiều
+          </span>
+        </div>
+      )}
 
       {/* Table */}
       {loading ? (
@@ -170,6 +292,23 @@ export default function StudentsClient() {
           <table className="w-full text-sm">
             <thead className="bg-slate-50/70 text-xs uppercase tracking-wide text-slate-500">
               <tr>
+                <th className="w-10 px-3 py-2.5 text-center">
+                  <input
+                    type="checkbox"
+                    checked={
+                      filtered.length > 0 &&
+                      filtered.every((s) => selected.has(s.id))
+                    }
+                    ref={(el) => {
+                      if (!el) return;
+                      const some = filtered.some((s) => selected.has(s.id));
+                      const all = filtered.every((s) => selected.has(s.id));
+                      el.indeterminate = some && !all;
+                    }}
+                    onChange={toggleAllVisible}
+                    className="h-4 w-4 rounded border-slate-300 accent-slate-900"
+                  />
+                </th>
                 <th className="px-3 py-2.5 text-left">Mã HS</th>
                 <th className="px-3 py-2.5 text-left">Họ và tên</th>
                 <th className="px-3 py-2.5 text-left">Ngày sinh</th>
@@ -180,8 +319,21 @@ export default function StudentsClient() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filtered.map((s) => (
-                <tr key={s.id} className={s.is_active ? "" : "opacity-50"}>
+              {filtered.map((s) => {
+                const isSel = selected.has(s.id);
+                return (
+                <tr
+                  key={s.id}
+                  className={`${s.is_active ? "" : "opacity-50"} ${isSel ? "bg-indigo-50/40" : ""}`}
+                >
+                  <td className="px-3 py-2.5 text-center">
+                    <input
+                      type="checkbox"
+                      checked={isSel}
+                      onChange={() => toggleSel(s.id)}
+                      className="h-4 w-4 rounded border-slate-300 accent-slate-900"
+                    />
+                  </td>
                   <td className="px-3 py-2.5 font-mono text-xs tabular-nums text-slate-600">
                     {s.student_code}
                   </td>
@@ -228,7 +380,8 @@ export default function StudentsClient() {
                     </div>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>

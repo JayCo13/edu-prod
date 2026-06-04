@@ -4,16 +4,20 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 import {
   AlertTriangle,
+  Ban,
   Calendar,
   Check,
   Plus,
   Receipt,
+  Trash2,
   X,
 } from "lucide-react";
 
 import { useConfirm } from "@/components/ui/confirm-dialog";
 
 import {
+  bulkCancelPayments,
+  bulkDeletePayments,
   cancelPayment,
   createPayment,
   listPaymentAlerts,
@@ -61,6 +65,8 @@ export default function PaymentsClient() {
     }
   }, [windowDays, windowReady]);
   const [alerts, setAlerts] = useState<PaymentAlert[]>([]);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkPending, setBulkPending] = useState(false);
   const [loading, setLoading] = useState(true);
   const [markPay, setMarkPay] = useState<PaymentAlert | null>(null);
   const [reload, setReload] = useState(0);
@@ -107,6 +113,74 @@ export default function PaymentsClient() {
         toast.success("Đã huỷ khoản thu.");
       } else toast.error(r.error);
     });
+  }
+
+  // ── Bulk select payments ──────────────────────────────────────────
+  function togglePaymentSel(id: string) {
+    setSelected((p) => {
+      const n = new Set(p);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
+  }
+  function toggleAllAlerts() {
+    setSelected((p) => {
+      if (alerts.every((a) => p.has(a.payment.id))) {
+        const n = new Set(p);
+        alerts.forEach((a) => n.delete(a.payment.id));
+        return n;
+      }
+      const n = new Set(p);
+      alerts.forEach((a) => n.add(a.payment.id));
+      return n;
+    });
+  }
+
+  async function handleBulkCancel() {
+    if (selected.size === 0) return;
+    const ok = await confirm({
+      title: `Huỷ ${selected.size} khoản thu?`,
+      description:
+        "Khoản đã PAID sẽ bị bỏ qua. Khoản huỷ vẫn lưu trong lịch sử với status = CANCELLED.",
+      variant: "warning",
+      confirmLabel: `Huỷ ${selected.size}`,
+    });
+    if (!ok) return;
+    setBulkPending(true);
+    const r = await bulkCancelPayments({ payment_ids: [...selected] });
+    setBulkPending(false);
+    if (r.success) {
+      setSelected(new Set());
+      setReload((k) => k + 1);
+      const { cancelled, skipped_paid } = r.data;
+      const parts: string[] = [`${cancelled} huỷ`];
+      if (skipped_paid > 0) parts.push(`${skipped_paid} đã PAID (bỏ qua)`);
+      toast.success(`Hoàn tất: ${parts.join(" · ")}`);
+    } else toast.error(r.error);
+  }
+
+  async function handleBulkDelete() {
+    if (selected.size === 0) return;
+    const ok = await confirm({
+      title: `Xoá ${selected.size} khoản thu?`,
+      description:
+        "XOÁ CỨNG — không thể hoàn tác. Khoản đã PAID sẽ bị bỏ qua. Chỉ dùng khi tạo nhầm hàng loạt.",
+      variant: "danger",
+      confirmLabel: `Xoá ${selected.size}`,
+    });
+    if (!ok) return;
+    setBulkPending(true);
+    const r = await bulkDeletePayments({ payment_ids: [...selected] });
+    setBulkPending(false);
+    if (r.success) {
+      setSelected(new Set());
+      setReload((k) => k + 1);
+      const { deleted, skipped_paid } = r.data;
+      const parts: string[] = [`${deleted} xoá`];
+      if (skipped_paid > 0) parts.push(`${skipped_paid} đã PAID (bỏ qua)`);
+      toast.success(`Hoàn tất: ${parts.join(" · ")}`);
+    } else toast.error(r.error);
   }
 
   return (
@@ -173,10 +247,63 @@ export default function PaymentsClient() {
               </p>
             </div>
           ) : (
+            <>
+              {selected.size > 0 && (
+                <div className="sticky top-0 z-10 mb-2 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-indigo-200 bg-indigo-50/80 px-3 py-2 shadow-sm backdrop-blur">
+                  <p className="text-sm font-semibold text-indigo-900">
+                    Đã chọn <span className="font-mono">{selected.size}</span> /{" "}
+                    {alerts.length}
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setSelected(new Set())}
+                      className="rounded-lg border border-indigo-200 bg-white px-2.5 py-1 text-xs font-semibold text-indigo-700 hover:bg-indigo-50"
+                    >
+                      Bỏ chọn
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleBulkCancel}
+                      disabled={bulkPending}
+                      className="inline-flex items-center gap-1 rounded-lg bg-amber-600 px-2.5 py-1 text-xs font-semibold text-white shadow-sm hover:opacity-90 disabled:opacity-50"
+                    >
+                      <Ban className="h-3 w-3" />
+                      Huỷ {selected.size}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleBulkDelete}
+                      disabled={bulkPending}
+                      className="inline-flex items-center gap-1 rounded-lg bg-rose-600 px-2.5 py-1 text-xs font-semibold text-white shadow-sm hover:opacity-90 disabled:opacity-50"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                      Xoá {selected.size}
+                    </button>
+                  </div>
+                </div>
+              )}
             <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
               <table className="w-full text-sm">
                 <thead className="bg-slate-50/70 text-xs uppercase tracking-wide text-slate-500">
                   <tr>
+                    <th className="w-10 px-3 py-2.5 text-center">
+                      <input
+                        type="checkbox"
+                        checked={
+                          alerts.length > 0 &&
+                          alerts.every((a) => selected.has(a.payment.id))
+                        }
+                        ref={(el) => {
+                          if (!el) return;
+                          const some = alerts.some((a) => selected.has(a.payment.id));
+                          const all = alerts.every((a) => selected.has(a.payment.id));
+                          el.indeterminate = some && !all;
+                        }}
+                        onChange={toggleAllAlerts}
+                        className="h-4 w-4 rounded border-slate-300 accent-slate-900"
+                      />
+                    </th>
                     <th className="px-3 py-2.5 text-left">Học sinh</th>
                     <th className="px-3 py-2.5 text-left">Lớp</th>
                     <th className="px-3 py-2.5 text-left">Kỳ</th>
@@ -187,17 +314,27 @@ export default function PaymentsClient() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {alerts.map((a) => (
+                  {alerts.map((a) => {
+                    const isSel = selected.has(a.payment.id);
+                    return (
                     <tr
                       key={a.payment.id}
-                      className={
+                      className={`${
                         a.days_until_due < 0
                           ? "bg-rose-50/30"
                           : a.days_until_due <= 3
                             ? "bg-amber-50/30"
                             : ""
-                      }
+                      } ${isSel ? "ring-1 ring-indigo-200" : ""}`}
                     >
+                      <td className="px-3 py-2.5 text-center">
+                        <input
+                          type="checkbox"
+                          checked={isSel}
+                          onChange={() => togglePaymentSel(a.payment.id)}
+                          className="h-4 w-4 rounded border-slate-300 accent-slate-900"
+                        />
+                      </td>
                       <td className="px-3 py-2.5">
                         <div className="font-medium text-slate-900">
                           {a.student.display_name}
@@ -259,10 +396,12 @@ export default function PaymentsClient() {
                         </div>
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
+            </>
           )}
         </>
       )}

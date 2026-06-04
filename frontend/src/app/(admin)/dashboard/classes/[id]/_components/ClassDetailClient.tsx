@@ -22,6 +22,7 @@ import BulkPaymentsModal from "./BulkPaymentsModal";
 import {
   createClassSession,
   deleteClassSession,
+  getClassSessionCount,
   listClasses,
   listSessionsForClass,
   type ClassRow,
@@ -851,12 +852,26 @@ function CreateSessionModal({
   defaultStart.setMinutes(0, 0, 0);
   const defaultStartStr = `${defaultStart.getFullYear()}-${pad(defaultStart.getMonth() + 1)}-${pad(defaultStart.getDate())}T${pad(defaultStart.getHours())}:${pad(defaultStart.getMinutes())}`;
 
-  const [title, setTitle] = useState("Buổi học");
+  const [title, setTitle] = useState("");
   const [startTime, setStartTime] = useState(defaultStartStr);
   const [duration, setDuration] = useState("90");
   const [description, setDescription] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+
+  // Default title = "Buổi N+1" với N = số buổi đang có. Tránh user
+  // phải đếm thủ công + ngừng trùng tên với buổi trước.
+  useEffect(() => {
+    let cancelled = false;
+    getClassSessionCount(classId).then((r) => {
+      if (cancelled) return;
+      if (r.success) setTitle(`Buổi ${r.data + 1}`);
+      else setTitle("Buổi 1");
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [classId]);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

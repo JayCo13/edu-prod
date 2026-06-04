@@ -336,17 +336,56 @@ function datesInRangeByDow(
   return dates;
 }
 
+// Đếm buổi hiện có của lớp — dùng cho start_seq khi đánh số.
+async function countSessionsInClass(
+  supabase: Awaited<ReturnType<typeof requireAdmin>>["supabase"],
+  tenantId: string,
+  classId: string,
+): Promise<number> {
+  const { count } = await supabase
+    .from("live_sessions")
+    .select("id", { count: "exact", head: true })
+    .eq("tenant_id", tenantId)
+    .eq("class_id", classId);
+  return count ?? 0;
+}
+
+export async function getClassSessionCount(
+  classId: string,
+): Promise<ActionResult<number>> {
+  try {
+    const { supabase, tenant } = await requireAdmin();
+    const c = await countSessionsInClass(supabase, tenant.id, classId);
+    return { success: true, data: c };
+  } catch (e) {
+    return err(e);
+  }
+}
+
 export async function previewBulkSessions(
   input: BulkSessionsInput,
-): Promise<ActionResult<{ count: number; first_dates: string[]; last_dates: string[] }>> {
+): Promise<
+  ActionResult<{
+    count: number;
+    start_seq_no: number; // số thứ tự sẽ bắt đầu
+    first_dates: string[];
+    last_dates: string[];
+  }>
+> {
   try {
-    await requireAdmin();
+    const { supabase, tenant } = await requireAdmin();
     const parsed = BulkSessionsSchema.parse(input);
-    const dates = datesInRangeByDow(parsed.start_date, parsed.end_date, parsed.days_of_week);
+    const dates = datesInRangeByDow(
+      parsed.start_date,
+      parsed.end_date,
+      parsed.days_of_week,
+    );
+    const existing = await countSessionsInClass(supabase, tenant.id, parsed.class_id);
     return {
       success: true,
       data: {
         count: dates.length,
+        start_seq_no: existing + 1,
         first_dates: dates.slice(0, 3),
         last_dates: dates.slice(-3),
       },
@@ -386,9 +425,14 @@ export async function bulkCreateSessions(
       };
     }
 
+    // Continue đánh số từ buổi đang có. Nếu lớp đã có 5 buổi → bulk
+    // 10 buổi mới sẽ được đặt {n} = 6..15. Tránh "Buổi 1 / Buổi 2"
+    // bị trùng với buổi manual đã tạo trước đó.
+    const existing = await countSessionsInClass(supabase, tenant.id, parsed.class_id);
+    const startSeq = existing + 1;
     const duration = parsed.duration_minutes ?? 90;
     const rows = dates.map((dateStr, i) => {
-      const seqNo = i + 1;
+      const seqNo = startSeq + i;
       // Title template hỗ trợ {n} = số thứ tự, {date} = DD/MM/YYYY VN.
       const [yy, mm, dd] = dateStr.split("-");
       const vnDate = `${dd}/${mm}/${yy}`;

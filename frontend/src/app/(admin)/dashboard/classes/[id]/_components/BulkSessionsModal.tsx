@@ -39,6 +39,7 @@ export default function BulkSessionsModal({ classId, className, onClose, onDone 
   const [dows, setDows] = useState<Set<number>>(new Set([1, 3, 5])); // T2/T4/T6 mặc định
   const [preview, setPreview] = useState<{
     count: number;
+    start_seq_no: number;
     first_dates: string[];
     last_dates: string[];
   } | null>(null);
@@ -223,6 +224,23 @@ export default function BulkSessionsModal({ classId, className, onClose, onDone 
                     <p className="font-semibold">
                       Sẽ tạo <span className="font-mono">{preview.count}</span> buổi
                     </p>
+                    {title.includes("{n}") && (
+                      <p className="mt-0.5 text-xs text-indigo-800">
+                        Đánh số từ{" "}
+                        <span className="font-mono font-semibold">
+                          {preview.start_seq_no}
+                        </span>{" "}
+                        →{" "}
+                        <span className="font-mono font-semibold">
+                          {preview.start_seq_no + preview.count - 1}
+                        </span>
+                        {preview.start_seq_no > 1 && (
+                          <span className="text-indigo-600">
+                            {" "}(lớp đã có {preview.start_seq_no - 1} buổi)
+                          </span>
+                        )}
+                      </p>
+                    )}
                     <p className="mt-1 text-xs text-indigo-800">
                       Đầu: {preview.first_dates.map(toVnDate).join(" · ")}
                       {preview.last_dates.length > 0 &&

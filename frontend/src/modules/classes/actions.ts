@@ -239,13 +239,30 @@ export async function listSessionsForClass(input: {
       .select("id, tenant_id, class_id, title, description, start_time, duration_minutes, is_cancelled")
       .eq("tenant_id", tenant.id)
       .eq("class_id", input.class_id)
-      .order("start_time", { ascending: false })
+      // Fetch ASC để dữ liệu có thứ tự ổn định; UI client sort lại
+      // theo "upcoming gần nhất trước, đã qua thì mới nhất trước".
+      .order("start_time", { ascending: true })
       .limit(200);
     if (input.from) q = q.gte("start_time", input.from);
     if (input.to) q = q.lt("start_time", input.to);
     const { data, error } = await q;
     if (error) return { success: false, error: error.message };
-    return { success: true, data: (data ?? []) as ClassSessionRow[] };
+
+    // Sắp xếp: upcoming ASC (gần nhất trước), past DESC (mới qua trước).
+    // Vd. hôm nay 2026-06-04 → 06-05, 06-07, 06-10, …, 06-03, 06-01.
+    const now = Date.now();
+    const rows = (data ?? []) as ClassSessionRow[];
+    rows.sort((a, b) => {
+      const ta = new Date(a.start_time).getTime();
+      const tb = new Date(b.start_time).getTime();
+      const aFut = ta >= now;
+      const bFut = tb >= now;
+      if (aFut && !bFut) return -1;
+      if (!aFut && bFut) return 1;
+      if (aFut && bFut) return ta - tb; // upcoming ASC
+      return tb - ta; // past DESC
+    });
+    return { success: true, data: rows };
   } catch (e) {
     return err(e);
   }

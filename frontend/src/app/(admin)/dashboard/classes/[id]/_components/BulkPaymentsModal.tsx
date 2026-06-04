@@ -128,19 +128,21 @@ export default function BulkPaymentsModal({
               <p className="font-semibold text-slate-900">Cách hoạt động</p>
               <ul className="mt-1 ml-4 list-disc space-y-0.5">
                 <li>
-                  Sinh khoản thu cho mỗi HS × mỗi tháng trong khoảng đã chọn.
+                  Tạo khoản thu cho mỗi học sinh, mỗi tháng trong khoảng đã
+                  chọn.
                 </li>
                 <li>
-                  Số tiền = <strong>tuition_amount_vnd</strong> trong đăng ký HS;
-                  HS chưa set sẽ bị bỏ qua.
+                  <strong>Số tiền</strong> lấy từ mức học phí đã ghi khi đăng
+                  ký lớp cho HS. HS chưa ghi học phí sẽ được bỏ qua.
                 </li>
                 <li>
-                  Ngày đóng = <strong>payment_day</strong> trong đăng ký, hoặc giá
-                  trị mặc định bên dưới nếu HS chưa có.
+                  <strong>Ngày đóng</strong> lấy theo ngày đóng đã chọn lúc
+                  đăng ký lớp; nếu HS chưa chọn thì dùng ngày mặc định bên
+                  dưới.
                 </li>
                 <li>
-                  Khoản đã tồn tại (cùng HS + cùng ngày đóng) sẽ bị bỏ qua —
-                  chạy lại an toàn.
+                  Khoản thu nào đã tồn tại (cùng HS, cùng ngày đến hạn) sẽ
+                  được bỏ qua — bấm lại nhiều lần vẫn an toàn, không bị trùng.
                 </li>
               </ul>
             </div>
@@ -169,7 +171,7 @@ export default function BulkPaymentsModal({
 
             <Field
               label="Ngày đóng mặc định"
-              hint="Chỉ dùng cho HS chưa set payment_day trong đăng ký. Ngày vượt số ngày của tháng (vd. 31/2) sẽ tự lùi về ngày cuối tháng."
+              hint="Chỉ áp dụng cho HS chưa chọn ngày đóng riêng. Nếu chọn ngày 31 mà tháng đó không có (vd. tháng 2), hệ thống sẽ tự lùi về ngày cuối tháng."
             >
               <input
                 type="number"

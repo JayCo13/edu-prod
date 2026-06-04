@@ -59,7 +59,7 @@ export default function TeachersTab({ classId, className }: Props) {
       title: `Gỡ ${isPrimary ? "GV chính" : "trợ giảng"}?`,
       description: isPrimary
         ? `Gỡ ${row.teacher.display_name} khỏi vai trò GV chính. Các buổi tương lai của lớp sẽ bị xoá GV (cần gán GV mới sau).`
-        : `Gỡ ${row.teacher.display_name} khỏi danh sách trợ giảng của lớp. Buổi đã ghi nhận sẽ giữ nguyên teacher_id.`,
+        : `Gỡ ${row.teacher.display_name} khỏi danh sách trợ giảng của lớp. Các buổi đã ghi nhận vẫn giữ nguyên giáo viên phụ trách.`,
       variant: "warning",
       confirmLabel: "Gỡ",
     });
@@ -73,7 +73,7 @@ export default function TeachersTab({ classId, className }: Props) {
         setReload((k) => k + 1);
         toast.success(
           r.data.sessions_cleared > 0
-            ? `Đã gỡ. Xoá teacher_id khỏi ${r.data.sessions_cleared} buổi tương lai.`
+            ? `Đã gỡ. Bỏ giáo viên phụ trách khỏi ${r.data.sessions_cleared} buổi sắp tới.`
             : "Đã gỡ giáo viên khỏi lớp.",
         );
       } else toast.error(r.error);
@@ -85,8 +85,8 @@ export default function TeachersTab({ classId, className }: Props) {
     const ok = await confirm({
       title: "Chuyển thành GV chính?",
       description: primary
-        ? `${row.teacher.display_name} sẽ trở thành GV chính. ${primary.teacher.display_name} sẽ bị hạ về trợ giảng. Buổi tương lai sẽ tự động cập nhật.`
-        : `${row.teacher.display_name} sẽ là GV chính. Buổi tương lai chưa có GV sẽ tự gán cho người này.`,
+        ? `${row.teacher.display_name} sẽ trở thành GV chính. ${primary.teacher.display_name} sẽ chuyển sang vai trò trợ giảng. Các buổi sắp tới sẽ tự đổi sang GV mới.`
+        : `${row.teacher.display_name} sẽ là GV chính của lớp. Các buổi sắp tới chưa có giáo viên sẽ tự nhận GV này.`,
       variant: "info",
       confirmLabel: "Chuyển",
     });
@@ -100,7 +100,7 @@ export default function TeachersTab({ classId, className }: Props) {
         setReload((k) => k + 1);
         toast.success(
           r.data.sessions_updated > 0
-            ? `Đã chuyển. Cập nhật GV cho ${r.data.sessions_updated} buổi tương lai.`
+            ? `Đã chuyển. Cập nhật giáo viên cho ${r.data.sessions_updated} buổi sắp tới.`
             : "Đã chuyển thành GV chính.",
         );
       } else toast.error(r.error);
@@ -112,7 +112,7 @@ export default function TeachersTab({ classId, className }: Props) {
     const ok = await confirm({
       title: "Hạ thành trợ giảng?",
       description:
-        "Lớp sẽ không còn GV chính. Buổi tương lai có GV này sẽ bị xoá teacher_id (cần gán GV chính mới).",
+        "Lớp sẽ không còn GV chính. Các buổi sắp tới do GV này phụ trách sẽ trở về trạng thái chưa có giáo viên — cần gán GV chính mới sau đó.",
       variant: "warning",
       confirmLabel: "Hạ",
     });
@@ -126,7 +126,7 @@ export default function TeachersTab({ classId, className }: Props) {
         setReload((k) => k + 1);
         toast.success(
           r.data.sessions_updated > 0
-            ? `Đã hạ. Xoá teacher_id khỏi ${r.data.sessions_updated} buổi tương lai.`
+            ? `Đã hạ. Bỏ giáo viên phụ trách khỏi ${r.data.sessions_updated} buổi sắp tới.`
             : "Đã hạ về trợ giảng.",
         );
       } else toast.error(r.error);
@@ -182,7 +182,7 @@ export default function TeachersTab({ classId, className }: Props) {
                   <p className="mt-0.5 text-xs text-slate-500">
                     Gán từ {formatVnDate(primary.assigned_at)}
                     {!primary.teacher.is_active && " · GV đã ngừng kích hoạt"}
-                    {primary.teacher.profile_id == null && " · chưa có account"}
+                    {primary.teacher.profile_id == null && " · chưa có tài khoản đăng nhập"}
                   </p>
                 </div>
                 <div className="flex shrink-0 gap-1">

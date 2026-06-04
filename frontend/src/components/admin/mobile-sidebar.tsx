@@ -58,7 +58,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Giáo viên", href: "/dashboard/teachers", icon: UserCog },
   { label: "Bảng lương", href: "/admin/payroll", icon: Wallet, kinds: ["CENTER"] },
   { label: "Lương trường", href: "/admin/school-payroll", icon: Wallet, kinds: ["SCHOOL"] },
-  { label: "Lớp của tôi", href: "/dashboard/my-classes", icon: GraduationCap, kinds: ["CENTER"] },
+  { label: "Lớp của tôi", href: "/dashboard/my-classes", icon: GraduationCap, hideForAdmin: true, kinds: ["CENTER"] },
   { label: "Nhận lương", href: "/dashboard/payouts", icon: Banknote, hideForAdmin: true, kinds: ["CENTER"] },
   { label: "Thanh toán", href: "/admin/billing", icon: CreditCard },
   { label: "Cài đặt", href: "/admin/settings", icon: Settings },

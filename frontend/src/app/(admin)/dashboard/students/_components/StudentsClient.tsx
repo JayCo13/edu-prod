@@ -11,6 +11,9 @@ import {
   Users,
 } from "lucide-react";
 
+import { toast } from "sonner";
+
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import {
   createStudent,
   deleteStudent,
@@ -62,6 +65,8 @@ export default function StudentsClient() {
     });
   }, [rows, search]);
 
+  const confirm = useConfirm();
+
   function handleSave(input: StudentInput) {
     const current = editing;
     if (!current) return;
@@ -71,26 +76,34 @@ export default function StudentsClient() {
         if (r.success) {
           setRows((xs) => [r.data, ...xs].sort((a, b) => a.display_name.localeCompare(b.display_name)));
           setEditing(null);
-        } else alert(r.error);
+          toast.success(`Đã thêm học sinh ${r.data.display_name}.`);
+        } else toast.error(r.error);
       } else {
         const r = await updateStudent(current.id, input);
         if (r.success) {
           setRows((xs) => xs.map((x) => (x.id === current.id ? r.data : x)));
           setEditing(null);
-        } else alert(r.error);
+          toast.success("Đã cập nhật học sinh.");
+        } else toast.error(r.error);
       }
     });
   }
 
-  function handleDelete(row: StudentRow) {
-    if (!confirm(`Xoá học sinh ${row.display_name}? Nếu HS đã có lịch sử thì chỉ ngưng kích hoạt.`)) {
-      return;
-    }
+  async function handleDelete(row: StudentRow) {
+    const ok = await confirm({
+      title: `Xoá học sinh ${row.display_name}?`,
+      description:
+        "Nếu HS đã có lịch sử lớp/học phí thì hệ thống sẽ chỉ đặt ngừng kích hoạt thay vì xoá cứng.",
+      variant: "danger",
+      confirmLabel: "Xoá",
+    });
+    if (!ok) return;
     startTransition(async () => {
       const r = await deleteStudent(row.id);
       if (r.success) {
         setRows((xs) => xs.filter((x) => x.id !== row.id));
-      } else alert(r.error);
+        toast.success(`Đã xoá / ngừng kích hoạt ${row.display_name}.`);
+      } else toast.error(r.error);
     });
   }
 

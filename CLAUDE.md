@@ -187,6 +187,35 @@ The earlier magic-link invite path (`auth.admin.inviteUserByEmail` + `/auth/setu
 
 Teacher views (attendance, today's schedule) are used on phones in noisy classrooms. Bottom navigation, 44px+ tap targets, page load <2s on 3G, offline-capable attendance queue where feasible.
 
+### 8.5 Notifications & confirmations (NO browser popups)
+
+**Never use `window.alert()`, `window.confirm()`, or `window.prompt()`** — they break flow, look unprofessional, and don't match the admin shell visual language. The repo already has a consistent in-app system mounted globally in `admin-shell.tsx`:
+
+- **Toast** — non-blocking success/error/info feedback. Use `sonner`:
+  ```ts
+  import { toast } from "sonner";
+  toast.success("Đã tạo 12 buổi học.");
+  toast.error(r.error);          // for server action failures
+  toast.info("…");
+  ```
+- **Confirm** — for destructive or irreversible actions, use the project's `useConfirm()` hook:
+  ```tsx
+  import { useConfirm } from "@/components/ui/confirm-dialog";
+  const confirm = useConfirm();
+  // …
+  if (await confirm({
+    title: "Xoá buổi học?",
+    description: "Buổi 5 — 15/06/2026. Hành động không thể hoàn tác.",
+    variant: "danger",        // "info" | "warning" | "danger"
+    confirmLabel: "Xoá",
+  })) {
+    await deleteSession();
+  }
+  ```
+- **Prompt-style input** — never use `window.prompt`. Build a small modal with `<Field>` + `<input>` (see `BulkSessionsModal` / `ClassFormModal` for the pattern).
+
+If you find an existing `alert`/`confirm` while editing nearby code, replace it as part of the same change.
+
 ## 9. Roadmap snapshot (PRD §10)
 
 - **Phase 1 (current):** Refactor — hide deprecated features, rewrite landing for center owners, split dashboard by role, ensure `center_id` everywhere, RBAC.

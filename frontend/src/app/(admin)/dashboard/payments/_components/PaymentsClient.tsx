@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
+import { toast } from "sonner";
 import {
   AlertTriangle,
   Calendar,
@@ -9,6 +10,8 @@ import {
   Receipt,
   X,
 } from "lucide-react";
+
+import { useConfirm } from "@/components/ui/confirm-dialog";
 
 import {
   cancelPayment,
@@ -87,14 +90,22 @@ export default function PaymentsClient() {
   const totalOverdueVnd = overdue.reduce((s, a) => s + a.remaining_vnd, 0);
   const totalUpcomingVnd = upcoming.reduce((s, a) => s + a.remaining_vnd, 0);
 
-  function handleCancel(p: PaymentAlert) {
-    if (!confirm(`Huỷ khoản thu ${p.payment.period_label || "này"} của ${p.student.display_name}?`)) {
-      return;
-    }
+  const confirm = useConfirm();
+
+  async function handleCancel(p: PaymentAlert) {
+    const ok = await confirm({
+      title: "Huỷ khoản thu?",
+      description: `${p.payment.period_label || "Khoản thu"} của ${p.student.display_name}. Hành động này đặt trạng thái về CANCELLED — vẫn lưu trong lịch sử.`,
+      variant: "warning",
+      confirmLabel: "Huỷ khoản",
+    });
+    if (!ok) return;
     startTransition(async () => {
       const r = await cancelPayment(p.payment.id);
-      if (r.success) setReload((k) => k + 1);
-      else alert(r.error);
+      if (r.success) {
+        setReload((k) => k + 1);
+        toast.success("Đã huỷ khoản thu.");
+      } else toast.error(r.error);
     });
   }
 

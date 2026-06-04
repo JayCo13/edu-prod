@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
+import { toast } from "sonner";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import {
   ArrowLeftRight,
   CalendarCheck,
@@ -8,6 +10,7 @@ import {
   CalendarRange,
   ClipboardCheck,
   LogOut,
+  Pencil,
   Receipt,
   Trash2,
   UserPlus,
@@ -18,6 +21,7 @@ import {
 import AddStudentsModal from "./AddStudentsModal";
 import BulkSessionsModal from "./BulkSessionsModal";
 import BulkPaymentsModal from "./BulkPaymentsModal";
+import BulkEditSessionsModal from "./BulkEditSessionsModal";
 
 import {
   createClassSession,
@@ -275,11 +279,7 @@ export default function ClassDetailClient({ classId, className }: Props) {
           onDone={(added) => {
             setAddingStudents(false);
             setReload((k) => k + 1);
-            if (added > 0) {
-              // Quick visual confirm; no toast lib in repo
-              // eslint-disable-next-line no-alert
-              window.setTimeout(() => alert(`Đã thêm ${added} học sinh vào lớp.`), 100);
-            }
+            if (added > 0) toast.success(`Đã thêm ${added} học sinh vào lớp.`);
           }}
         />
       )}
@@ -290,10 +290,10 @@ export default function ClassDetailClient({ classId, className }: Props) {
           onClose={() => setBulkPaymentsOpen(false)}
           onDone={(created) => {
             setBulkPaymentsOpen(false);
-            // eslint-disable-next-line no-alert
-            window.setTimeout(
-              () => alert(`Đã tạo ${created} khoản thu hàng tháng.`),
-              100,
+            toast.success(
+              created > 0
+                ? `Đã tạo ${created} khoản thu hàng tháng.`
+                : "Không có khoản nào mới (đều đã tồn tại).",
             );
           }}
         />
@@ -683,6 +683,10 @@ function SessionsTab({
   const [attendanceFor, setAttendanceFor] = useState<ClassSessionRow | null>(null);
   const [reload, setReload] = useState(0);
   const [pending, startTransition] = useTransition();
+  // Multi-select cho thao tác hàng loạt — Set ID buổi đã tick.
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkEditOpen, setBulkEditOpen] = useState(false);
+  const confirm = useConfirm();
 
   useEffect(() => {
     let cancelled = false;
@@ -697,12 +701,67 @@ function SessionsTab({
     };
   }, [classId, reload]);
 
-  function handleDelete(s: ClassSessionRow) {
-    if (!confirm(`Xoá buổi "${s.title}" ngày ${formatDateTime(s.start_time)}?`)) return;
+  async function handleDelete(s: ClassSessionRow) {
+    const ok = await confirm({
+      title: "Xoá buổi học?",
+      description: `${s.title} — ${formatDateTime(s.start_time)}. Hành động không thể hoàn tác.`,
+      variant: "danger",
+      confirmLabel: "Xoá",
+    });
+    if (!ok) return;
     startTransition(async () => {
       const r = await deleteClassSession(s.id);
-      if (r.success) setReload((k) => k + 1);
-      else alert(r.error);
+      if (r.success) {
+        setSelected((p) => {
+          const n = new Set(p);
+          n.delete(s.id);
+          return n;
+        });
+        toast.success(`Đã xoá ${s.title}.`);
+        setReload((k) => k + 1);
+      } else toast.error(r.error);
+    });
+  }
+
+  function toggleSel(id: string) {
+    setSelected((p) => {
+      const n = new Set(p);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
+  }
+
+  function toggleAll() {
+    setSelected((p) => {
+      if (sessions.every((s) => p.has(s.id))) return new Set();
+      return new Set(sessions.map((s) => s.id));
+    });
+  }
+
+  async function handleBulkDelete() {
+    const count = selected.size;
+    if (count === 0) return;
+    const ok = await confirm({
+      title: `Xoá ${count} buổi học?`,
+      description: `${count} buổi đã chọn sẽ bị xoá. Hành động không thể hoàn tác.`,
+      variant: "danger",
+      confirmLabel: `Xoá ${count} buổi`,
+    });
+    if (!ok) return;
+    startTransition(async () => {
+      const ids = [...selected];
+      let okCount = 0;
+      let errors = 0;
+      for (const id of ids) {
+        const r = await deleteClassSession(id);
+        if (r.success) okCount++;
+        else errors++;
+      }
+      setSelected(new Set());
+      setReload((k) => k + 1);
+      if (errors === 0) toast.success(`Đã xoá ${okCount} buổi.`);
+      else toast.error(`Xoá ${okCount}/${count} buổi. ${errors} buổi lỗi.`);
     });
   }
 
@@ -742,59 +801,129 @@ function SessionsTab({
           Chưa có buổi học nào. Bấm <strong>Tạo buổi học</strong> để bắt đầu.
         </p>
       ) : (
-        <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
-          <table className="w-full text-sm">
-            <thead className="bg-slate-50/70 text-xs uppercase tracking-wide text-slate-500">
-              <tr>
-                <th className="px-3 py-2.5 text-left">Tiêu đề</th>
-                <th className="px-3 py-2.5 text-left">Thời gian</th>
-                <th className="px-3 py-2.5 text-right">Thời lượng</th>
-                <th className="px-3 py-2.5 text-right">Thao tác</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {sessions.map((s) => (
-                <tr key={s.id} className={s.is_cancelled ? "opacity-50" : ""}>
-                  <td className="px-3 py-2.5 font-medium text-slate-900">
-                    {s.title}
-                    {s.is_cancelled && (
-                      <span className="ml-2 rounded-full bg-rose-100 px-1.5 text-[10px] font-semibold uppercase text-rose-700">
-                        đã huỷ
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-3 py-2.5 font-mono tabular-nums text-slate-700">
-                    {formatDateTime(s.start_time)}
-                  </td>
-                  <td className="px-3 py-2.5 text-right font-mono tabular-nums text-slate-600">
-                    {s.duration_minutes} phút
-                  </td>
-                  <td className="px-3 py-2.5">
-                    <div className="flex justify-end gap-1">
-                      <button
-                        type="button"
-                        onClick={() => setAttendanceFor(s)}
-                        disabled={s.is_cancelled || students.length === 0}
-                        className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-2 py-1 text-xs font-semibold text-white shadow-sm hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        <ClipboardCheck className="h-3 w-3" />
-                        Điểm danh
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDelete(s)}
-                        disabled={pending}
-                        className="rounded-lg p-1.5 text-rose-500 hover:bg-rose-50"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  </td>
+        <>
+          {/* Bulk action bar — chỉ hiện khi có item được chọn */}
+          {selected.size > 0 && (
+            <div className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-indigo-200 bg-indigo-50/80 px-3 py-2 shadow-sm backdrop-blur">
+              <p className="text-sm font-semibold text-indigo-900">
+                Đã chọn <span className="font-mono">{selected.size}</span> /{" "}
+                {sessions.length} buổi
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setSelected(new Set())}
+                  className="rounded-lg border border-indigo-200 bg-white px-2.5 py-1 text-xs font-semibold text-indigo-700 hover:bg-indigo-50"
+                >
+                  Bỏ chọn
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setBulkEditOpen(true)}
+                  disabled={pending}
+                  className="inline-flex items-center gap-1 rounded-lg bg-amber-600 px-2.5 py-1 text-xs font-semibold text-white shadow-sm hover:opacity-90 disabled:opacity-50"
+                >
+                  <Pencil className="h-3 w-3" />
+                  Sửa hàng loạt
+                </button>
+                <button
+                  type="button"
+                  onClick={handleBulkDelete}
+                  disabled={pending}
+                  className="inline-flex items-center gap-1 rounded-lg bg-rose-600 px-2.5 py-1 text-xs font-semibold text-white shadow-sm hover:opacity-90 disabled:opacity-50"
+                >
+                  <Trash2 className="h-3 w-3" />
+                  Xoá {selected.size} buổi
+                </button>
+              </div>
+            </div>
+          )}
+
+          <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <table className="w-full text-sm">
+              <thead className="bg-slate-50/70 text-xs uppercase tracking-wide text-slate-500">
+                <tr>
+                  <th className="w-10 px-3 py-2.5 text-center">
+                    <input
+                      type="checkbox"
+                      checked={
+                        sessions.length > 0 &&
+                        sessions.every((s) => selected.has(s.id))
+                      }
+                      ref={(el) => {
+                        if (!el) return;
+                        const some = sessions.some((s) => selected.has(s.id));
+                        const all = sessions.every((s) => selected.has(s.id));
+                        el.indeterminate = some && !all;
+                      }}
+                      onChange={toggleAll}
+                      className="h-4 w-4 rounded border-slate-300 accent-slate-900"
+                    />
+                  </th>
+                  <th className="px-3 py-2.5 text-left">Tiêu đề</th>
+                  <th className="px-3 py-2.5 text-left">Thời gian</th>
+                  <th className="px-3 py-2.5 text-right">Thời lượng</th>
+                  <th className="px-3 py-2.5 text-right">Thao tác</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {sessions.map((s) => {
+                  const isSel = selected.has(s.id);
+                  return (
+                    <tr
+                      key={s.id}
+                      className={`${s.is_cancelled ? "opacity-50" : ""} ${isSel ? "bg-indigo-50/40" : ""}`}
+                    >
+                      <td className="px-3 py-2.5 text-center">
+                        <input
+                          type="checkbox"
+                          checked={isSel}
+                          onChange={() => toggleSel(s.id)}
+                          className="h-4 w-4 rounded border-slate-300 accent-slate-900"
+                        />
+                      </td>
+                      <td className="px-3 py-2.5 font-medium text-slate-900">
+                        {s.title}
+                        {s.is_cancelled && (
+                          <span className="ml-2 rounded-full bg-rose-100 px-1.5 text-[10px] font-semibold uppercase text-rose-700">
+                            đã huỷ
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-3 py-2.5 font-mono tabular-nums text-slate-700">
+                        {formatDateTime(s.start_time)}
+                      </td>
+                      <td className="px-3 py-2.5 text-right font-mono tabular-nums text-slate-600">
+                        {s.duration_minutes} phút
+                      </td>
+                      <td className="px-3 py-2.5">
+                        <div className="flex justify-end gap-1">
+                          <button
+                            type="button"
+                            onClick={() => setAttendanceFor(s)}
+                            disabled={s.is_cancelled || students.length === 0}
+                            className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-2 py-1 text-xs font-semibold text-white shadow-sm hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            <ClipboardCheck className="h-3 w-3" />
+                            Điểm danh
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(s)}
+                            disabled={pending}
+                            className="rounded-lg p-1.5 text-rose-500 hover:bg-rose-50"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
 
       {creating && (
@@ -815,11 +944,18 @@ function SessionsTab({
           onDone={(created) => {
             setBulkCreating(false);
             setReload((k) => k + 1);
-            // eslint-disable-next-line no-alert
-            window.setTimeout(
-              () => alert(`Đã tạo ${created} buổi học.`),
-              100,
-            );
+            toast.success(`Đã tạo ${created} buổi học.`);
+          }}
+        />
+      )}
+      {bulkEditOpen && (
+        <BulkEditSessionsModal
+          sessionIds={[...selected]}
+          onClose={() => setBulkEditOpen(false)}
+          onDone={() => {
+            setBulkEditOpen(false);
+            setSelected(new Set());
+            setReload((k) => k + 1);
           }}
         />
       )}

@@ -2,8 +2,10 @@
 
 import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
+import { toast } from "sonner";
 import { GraduationCap, Pencil, Plus, Trash2, Users, X } from "lucide-react";
 
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import {
   createClass,
   deleteClass,
@@ -34,6 +36,8 @@ export default function ClassesClient() {
     };
   }, [reload]);
 
+  const confirm = useConfirm();
+
   function handleSave(input: ClassInput) {
     const current = editing;
     if (!current) return;
@@ -43,7 +47,8 @@ export default function ClassesClient() {
         if (r.success) {
           setRows((xs) => [{ ...(r.data as ClassRow), active_student_count: 0 }, ...xs]);
           setEditing(null);
-        } else alert(r.error);
+          toast.success(`Đã tạo lớp "${(r.data as ClassRow).name}".`);
+        } else toast.error(r.error);
       } else {
         const r = await updateClass(current.id, input);
         if (r.success) {
@@ -53,18 +58,27 @@ export default function ClassesClient() {
             ),
           );
           setEditing(null);
-        } else alert(r.error);
+          toast.success("Đã cập nhật lớp.");
+        } else toast.error(r.error);
       }
     });
   }
 
-  function handleDelete(row: ClassRow) {
-    if (!confirm(`Xoá lớp "${row.name}"?`)) return;
+  async function handleDelete(row: ClassRow) {
+    const ok = await confirm({
+      title: `Xoá lớp "${row.name}"?`,
+      description:
+        "Nếu lớp đang có HS thì hệ thống sẽ chỉ đặt thành ngừng hoạt động. Hành động này không thể hoàn tác.",
+      variant: "danger",
+      confirmLabel: "Xoá",
+    });
+    if (!ok) return;
     startTransition(async () => {
       const r = await deleteClass(row.id);
       if (r.success) {
         setReload((k) => k + 1);
-      } else alert(r.error);
+        toast.success(`Đã xoá lớp "${row.name}".`);
+      } else toast.error(r.error);
     });
   }
 

@@ -467,6 +467,122 @@ export async function bulkCreateSessions(
   }
 }
 
+// Xoá hàng loạt buổi học theo danh sách ID. Trả về số đã xoá / lỗi.
+// Caller cần confirm UX trước khi gọi.
+export async function bulkDeleteSessions(input: {
+  session_ids: string[];
+}): Promise<ActionResult<{ deleted: number }>> {
+  try {
+    const { supabase, tenant } = await requireAdmin();
+    if (input.session_ids.length === 0) {
+      return { success: false, error: "Chưa chọn buổi nào." };
+    }
+    const { error, count } = await supabase
+      .from("live_sessions")
+      .delete({ count: "exact" })
+      .eq("tenant_id", tenant.id)
+      .in("id", input.session_ids);
+    if (error) return { success: false, error: error.message };
+    revalidatePath("/dashboard/classes");
+    return { success: true, data: { deleted: count ?? input.session_ids.length } };
+  } catch (e) {
+    return err(e);
+  }
+}
+
+// Cập nhật hàng loạt — chỉ các trường thực sự thay đổi (undefined =
+// giữ nguyên). Đổi GIỜ chỉ thay HH:MM, ngày của từng buổi giữ nguyên.
+// SHIFT_DAYS dịch chuyển toàn bộ start_time +/- N ngày.
+const BulkEditSchema = z
+  .object({
+    session_ids: z.array(z.string().uuid()).min(1),
+    new_time: z
+      .string()
+      .regex(/^\d{2}:\d{2}$/)
+      .optional(),
+    new_duration_minutes: z.number().int().min(15).max(720).optional(),
+    shift_days: z.number().int().min(-365).max(365).optional(),
+    cancel: z.boolean().optional(), // true = mark cancelled, false = uncancel
+  })
+  .refine(
+    (d) =>
+      d.new_time !== undefined ||
+      d.new_duration_minutes !== undefined ||
+      d.shift_days !== undefined ||
+      d.cancel !== undefined,
+    { message: "Phải chọn ít nhất 1 thay đổi." },
+  );
+
+export type BulkEditInput = z.input<typeof BulkEditSchema>;
+
+export async function bulkEditSessions(
+  input: BulkEditInput,
+): Promise<ActionResult<{ updated: number; errors: number }>> {
+  try {
+    const { supabase, tenant } = await requireAdmin();
+    const parsed = BulkEditSchema.parse(input);
+
+    // Lấy buổi hiện tại để compute start_time mới per-session khi cần.
+    const { data: rows, error: loadErr } = await supabase
+      .from("live_sessions")
+      .select("id, start_time")
+      .eq("tenant_id", tenant.id)
+      .in("id", parsed.session_ids);
+    if (loadErr) return { success: false, error: loadErr.message };
+
+    let updated = 0;
+    let errors = 0;
+
+    for (const row of (rows ?? []) as Array<{ id: string; start_time: string }>) {
+      const patch: Record<string, unknown> = {};
+
+      if (parsed.new_time !== undefined || parsed.shift_days !== undefined) {
+        // Tách date + time hiện tại theo VN offset, dựng lại ISO.
+        const d = new Date(row.start_time);
+        // Đổi sang VN local để lấy date components đúng.
+        const vn = new Date(d.getTime() + 7 * 3600 * 1000); // +07:00
+        let year = vn.getUTCFullYear();
+        let month = vn.getUTCMonth();
+        let day = vn.getUTCDate();
+        if (parsed.shift_days) {
+          const shifted = new Date(Date.UTC(year, month, day));
+          shifted.setUTCDate(shifted.getUTCDate() + parsed.shift_days);
+          year = shifted.getUTCFullYear();
+          month = shifted.getUTCMonth();
+          day = shifted.getUTCDate();
+        }
+        const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+        const timeStr =
+          parsed.new_time ??
+          `${String(vn.getUTCHours()).padStart(2, "0")}:${String(vn.getUTCMinutes()).padStart(2, "0")}`;
+        patch.start_time = `${dateStr}T${timeStr}:00+07:00`;
+      }
+      if (parsed.new_duration_minutes !== undefined) {
+        patch.duration_minutes = parsed.new_duration_minutes;
+      }
+      if (parsed.cancel !== undefined) {
+        patch.is_cancelled = parsed.cancel;
+        // Theo CHECK constraint từ 0036: is_cancelled=true cần cancellation_reason.
+        if (parsed.cancel) patch.cancellation_reason = "BY_TEACHER";
+        else patch.cancellation_reason = null;
+      }
+
+      const { error: updErr } = await supabase
+        .from("live_sessions")
+        .update(patch)
+        .eq("id", row.id)
+        .eq("tenant_id", tenant.id);
+      if (updErr) errors++;
+      else updated++;
+    }
+
+    revalidatePath("/dashboard/classes");
+    return { success: true, data: { updated, errors } };
+  } catch (e) {
+    return err(e);
+  }
+}
+
 export async function deleteClassSession(id: string): Promise<ActionResult> {
   try {
     const { supabase, tenant } = await requireAdmin();

@@ -13,6 +13,7 @@ import {
   X,
 } from "lucide-react";
 
+import { Pagination, usePagination } from "@/components/ui/pagination";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 
 import {
@@ -67,6 +68,8 @@ export default function PaymentsClient() {
   const [alerts, setAlerts] = useState<PaymentAlert[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkPending, setBulkPending] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<"all" | "overdue" | "upcoming">("all");
+  const [classFilter, setClassFilter] = useState<string>("all");
   const [loading, setLoading] = useState(true);
   const [markPay, setMarkPay] = useState<PaymentAlert | null>(null);
   const [reload, setReload] = useState(0);
@@ -95,6 +98,32 @@ export default function PaymentsClient() {
   );
   const totalOverdueVnd = overdue.reduce((s, a) => s + a.remaining_vnd, 0);
   const totalUpcomingVnd = upcoming.reduce((s, a) => s + a.remaining_vnd, 0);
+
+  // List class names có trong alerts (cho dropdown filter)
+  const classOptions = useMemo(() => {
+    const set = new Set<string>();
+    alerts.forEach((a) => {
+      if (a.class_name) set.add(a.class_name);
+    });
+    return [...set].sort();
+  }, [alerts]);
+
+  const filteredAlerts = useMemo(() => {
+    let xs = alerts;
+    if (statusFilter === "overdue") xs = xs.filter((a) => a.days_until_due < 0);
+    else if (statusFilter === "upcoming") xs = xs.filter((a) => a.days_until_due >= 0);
+    if (classFilter !== "all") xs = xs.filter((a) => a.class_name === classFilter);
+    return xs;
+  }, [alerts, statusFilter, classFilter]);
+
+  const {
+    page,
+    pageSize,
+    paged,
+    total,
+    setPage,
+    setPageSize,
+  } = usePagination(filteredAlerts, 20);
 
   const confirm = useConfirm();
 
@@ -126,13 +155,13 @@ export default function PaymentsClient() {
   }
   function toggleAllAlerts() {
     setSelected((p) => {
-      if (alerts.every((a) => p.has(a.payment.id))) {
+      if (filteredAlerts.every((a) => p.has(a.payment.id))) {
         const n = new Set(p);
-        alerts.forEach((a) => n.delete(a.payment.id));
+        filteredAlerts.forEach((a) => n.delete(a.payment.id));
         return n;
       }
       const n = new Set(p);
-      alerts.forEach((a) => n.add(a.payment.id));
+      filteredAlerts.forEach((a) => n.add(a.payment.id));
       return n;
     });
   }
@@ -216,7 +245,7 @@ export default function PaymentsClient() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2 text-xs">
-            <span className="text-slate-500">Hiển thị khoản hạn trong</span>
+            <span className="text-slate-500">Hạn trong</span>
             <select
               value={windowDays}
               onChange={(e) => setWindowDays(Number(e.target.value))}
@@ -229,10 +258,62 @@ export default function PaymentsClient() {
               <option value={60}>60 ngày tới</option>
               <option value={365}>Tất cả khoản chưa đóng</option>
             </select>
-            <span className="text-slate-400">·</span>
-            <span className="text-slate-500">
-              Lựa chọn được lưu lại — F5 không đổi.
-            </span>
+
+            <span className="ml-1 font-semibold text-slate-500">Trạng thái:</span>
+            <div className="flex gap-1 rounded-xl bg-slate-100 p-0.5">
+              {(
+                [
+                  ["all", "Tất cả"],
+                  ["overdue", "Quá hạn"],
+                  ["upcoming", "Sắp tới"],
+                ] as const
+              ).map(([v, label]) => (
+                <button
+                  key={v}
+                  type="button"
+                  onClick={() => setStatusFilter(v)}
+                  className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition ${
+                    statusFilter === v
+                      ? "bg-white text-slate-900 shadow-sm"
+                      : "text-slate-500 hover:text-slate-700"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {classOptions.length > 0 && (
+              <>
+                <span className="ml-1 font-semibold text-slate-500">Lớp:</span>
+                <select
+                  value={classFilter}
+                  onChange={(e) => setClassFilter(e.target.value)}
+                  className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs outline-none focus:border-slate-400"
+                >
+                  <option value="all">Tất cả</option>
+                  {classOptions.map((n) => (
+                    <option key={n} value={n}>
+                      {n}
+                    </option>
+                  ))}
+                </select>
+              </>
+            )}
+
+            {(statusFilter !== "all" || classFilter !== "all") && (
+              <button
+                type="button"
+                onClick={() => {
+                  setStatusFilter("all");
+                  setClassFilter("all");
+                }}
+                className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+              >
+                Xoá bộ lọc
+              </button>
+            )}
+            <span className="ml-auto text-slate-400">F5 giữ lựa chọn</span>
           </div>
 
           {loading ? (
@@ -246,13 +327,22 @@ export default function PaymentsClient() {
                 Không có khoản thu nào quá hạn hoặc sắp tới hạn.
               </p>
             </div>
+          ) : filteredAlerts.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-slate-200 bg-white px-3 py-12 text-center">
+              <p className="text-sm font-medium text-slate-700">
+                Không khoản nào khớp bộ lọc hiện tại.
+              </p>
+              <p className="mt-1 text-xs text-slate-500">
+                Đổi trạng thái hoặc bỏ filter lớp để xem khoản khác.
+              </p>
+            </div>
           ) : (
             <>
               {selected.size > 0 && (
                 <div className="sticky top-0 z-10 mb-2 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-indigo-200 bg-indigo-50/80 px-3 py-2 shadow-sm backdrop-blur">
                   <p className="text-sm font-semibold text-indigo-900">
                     Đã chọn <span className="font-mono">{selected.size}</span> /{" "}
-                    {alerts.length}
+                    {filteredAlerts.length}
                   </p>
                   <div className="flex flex-wrap gap-1.5">
                     <button
@@ -291,13 +381,13 @@ export default function PaymentsClient() {
                       <input
                         type="checkbox"
                         checked={
-                          alerts.length > 0 &&
-                          alerts.every((a) => selected.has(a.payment.id))
+                          filteredAlerts.length > 0 &&
+                          filteredAlerts.every((a) => selected.has(a.payment.id))
                         }
                         ref={(el) => {
                           if (!el) return;
-                          const some = alerts.some((a) => selected.has(a.payment.id));
-                          const all = alerts.every((a) => selected.has(a.payment.id));
+                          const some = filteredAlerts.some((a) => selected.has(a.payment.id));
+                          const all = filteredAlerts.every((a) => selected.has(a.payment.id));
                           el.indeterminate = some && !all;
                         }}
                         onChange={toggleAllAlerts}
@@ -314,7 +404,7 @@ export default function PaymentsClient() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {alerts.map((a) => {
+                  {paged.map((a) => {
                     const isSel = selected.has(a.payment.id);
                     return (
                     <tr
@@ -401,6 +491,14 @@ export default function PaymentsClient() {
                 </tbody>
               </table>
             </div>
+            <Pagination
+              page={page}
+              pageSize={pageSize}
+              total={total}
+              onPageChange={setPage}
+              onPageSizeChange={setPageSize}
+              unit="khoản"
+            />
             </>
           )}
         </>

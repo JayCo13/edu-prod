@@ -15,6 +15,7 @@ import {
 
 import { toast } from "sonner";
 
+import { Pagination, usePagination } from "@/components/ui/pagination";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import {
   bulkDeleteStudents,
@@ -45,11 +46,16 @@ export default function StudentsClient() {
   const [pending, startTransition] = useTransition();
   const [reload, setReload] = useState(0);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  // Filters bổ sung ngoài search free-text
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("active");
+  const [genderFilter, setGenderFilter] = useState<"all" | StudentGender>("all");
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    listStudents().then((r) => {
+    // includeInactive khi user chọn Inactive/All để bảng còn hiển thị HS
+    // bị ngừng kích hoạt — backend mặc định chỉ trả active.
+    listStudents({ includeInactive: true }).then((r) => {
       if (cancelled) return;
       if (r.success) setRows(r.data);
       setLoading(false);
@@ -60,15 +66,30 @@ export default function StudentsClient() {
   }, [reload]);
 
   const filtered = useMemo(() => {
-    if (!search.trim()) return rows;
-    const q = removeDiacritics(search.toLowerCase());
-    return rows.filter((s) => {
-      const haystack = removeDiacritics(
-        `${s.display_name} ${s.student_code} ${s.parent_name ?? ""} ${s.parent_phone ?? ""} ${s.phone ?? ""}`.toLowerCase(),
-      );
-      return haystack.includes(q);
-    });
-  }, [rows, search]);
+    let xs = rows;
+    if (statusFilter === "active") xs = xs.filter((s) => s.is_active);
+    else if (statusFilter === "inactive") xs = xs.filter((s) => !s.is_active);
+    if (genderFilter !== "all") xs = xs.filter((s) => s.gender === genderFilter);
+    if (search.trim()) {
+      const q = removeDiacritics(search.toLowerCase());
+      xs = xs.filter((s) => {
+        const haystack = removeDiacritics(
+          `${s.display_name} ${s.student_code} ${s.parent_name ?? ""} ${s.parent_phone ?? ""} ${s.phone ?? ""}`.toLowerCase(),
+        );
+        return haystack.includes(q);
+      });
+    }
+    return xs;
+  }, [rows, search, statusFilter, genderFilter]);
+
+  const {
+    page,
+    pageSize,
+    paged,
+    setPage,
+    setPageSize,
+    total,
+  } = usePagination(filtered, 20);
 
   const confirm = useConfirm();
 
@@ -214,6 +235,57 @@ export default function StudentsClient() {
         </button>
       </div>
 
+      {/* Filter row — pills theo trạng thái + dropdown giới tính */}
+      <div className="flex flex-wrap items-center gap-2 text-xs">
+        <span className="font-semibold text-slate-500">Trạng thái:</span>
+        <div className="flex gap-1 rounded-xl bg-slate-100 p-0.5">
+          {(
+            [
+              ["active", "Đang học"],
+              ["inactive", "Đã ngừng"],
+              ["all", "Tất cả"],
+            ] as const
+          ).map(([v, label]) => (
+            <button
+              key={v}
+              type="button"
+              onClick={() => setStatusFilter(v)}
+              className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition ${
+                statusFilter === v
+                  ? "bg-white text-slate-900 shadow-sm"
+                  : "text-slate-500 hover:text-slate-700"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <span className="ml-2 font-semibold text-slate-500">Giới tính:</span>
+        <select
+          value={genderFilter}
+          onChange={(e) => setGenderFilter(e.target.value as "all" | StudentGender)}
+          className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs outline-none focus:border-slate-400"
+        >
+          <option value="all">Tất cả</option>
+          <option value="M">Nam</option>
+          <option value="F">Nữ</option>
+          <option value="OTHER">Khác</option>
+        </select>
+        {(statusFilter !== "active" || genderFilter !== "all" || search) && (
+          <button
+            type="button"
+            onClick={() => {
+              setStatusFilter("active");
+              setGenderFilter("all");
+              setSearch("");
+            }}
+            className="ml-auto rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+          >
+            Xoá bộ lọc
+          </button>
+        )}
+      </div>
+
       {/* Stat hoặc Bulk-action bar */}
       {selected.size > 0 ? (
         <div className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-indigo-200 bg-indigo-50/80 px-3 py-2 shadow-sm backdrop-blur">
@@ -319,7 +391,7 @@ export default function StudentsClient() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filtered.map((s) => {
+              {paged.map((s) => {
                 const isSel = selected.has(s.id);
                 return (
                 <tr
@@ -385,6 +457,17 @@ export default function StudentsClient() {
             </tbody>
           </table>
         </div>
+      )}
+
+      {!loading && filtered.length > 0 && (
+        <Pagination
+          page={page}
+          pageSize={pageSize}
+          total={total}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+          unit="học sinh"
+        />
       )}
 
       {editing && (

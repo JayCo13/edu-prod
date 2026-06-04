@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
+import { Pagination, usePagination } from "@/components/ui/pagination";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import {
   ArrowLeftRight,
@@ -686,7 +687,34 @@ function SessionsTab({
   // Multi-select cho thao tác hàng loạt — Set ID buổi đã tick.
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkEditOpen, setBulkEditOpen] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "cancelled" | "upcoming" | "past">("active");
+  const [search, setSearch] = useState("");
   const confirm = useConfirm();
+
+  const filteredSessions = useMemo(() => {
+    const now = Date.now();
+    let xs = sessions;
+    if (statusFilter === "active") xs = xs.filter((s) => !s.is_cancelled);
+    else if (statusFilter === "cancelled") xs = xs.filter((s) => s.is_cancelled);
+    else if (statusFilter === "upcoming")
+      xs = xs.filter((s) => !s.is_cancelled && new Date(s.start_time).getTime() >= now);
+    else if (statusFilter === "past")
+      xs = xs.filter((s) => new Date(s.start_time).getTime() < now);
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      xs = xs.filter((s) => s.title.toLowerCase().includes(q));
+    }
+    return xs;
+  }, [sessions, statusFilter, search]);
+
+  const {
+    page,
+    pageSize,
+    paged,
+    total: filteredTotal,
+    setPage,
+    setPageSize,
+  } = usePagination(filteredSessions, 20);
 
   useEffect(() => {
     let cancelled = false;
@@ -733,9 +761,16 @@ function SessionsTab({
   }
 
   function toggleAll() {
+    // Toggle all FILTERED (cross-page) — UX nhất quán với StudentsClient.
     setSelected((p) => {
-      if (sessions.every((s) => p.has(s.id))) return new Set();
-      return new Set(sessions.map((s) => s.id));
+      if (filteredSessions.every((s) => p.has(s.id))) {
+        const n = new Set(p);
+        filteredSessions.forEach((s) => n.delete(s.id));
+        return n;
+      }
+      const n = new Set(p);
+      filteredSessions.forEach((s) => n.add(s.id));
+      return n;
     });
   }
 
@@ -792,6 +827,56 @@ function SessionsTab({
         </div>
       </div>
 
+      {/* Filter row */}
+      {sessions.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 text-xs">
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Tìm tiêu đề buổi…"
+            className="min-w-[180px] flex-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs outline-none focus:border-slate-400"
+          />
+          <span className="font-semibold text-slate-500">Trạng thái:</span>
+          <div className="flex gap-1 rounded-xl bg-slate-100 p-0.5">
+            {(
+              [
+                ["active", "Còn"],
+                ["upcoming", "Sắp tới"],
+                ["past", "Đã qua"],
+                ["cancelled", "Đã huỷ"],
+                ["all", "Tất cả"],
+              ] as const
+            ).map(([v, label]) => (
+              <button
+                key={v}
+                type="button"
+                onClick={() => setStatusFilter(v)}
+                className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition ${
+                  statusFilter === v
+                    ? "bg-white text-slate-900 shadow-sm"
+                    : "text-slate-500 hover:text-slate-700"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          {(statusFilter !== "active" || search) && (
+            <button
+              type="button"
+              onClick={() => {
+                setStatusFilter("active");
+                setSearch("");
+              }}
+              className="ml-auto rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+            >
+              Xoá bộ lọc
+            </button>
+          )}
+        </div>
+      )}
+
       {loading ? (
         <p className="rounded-2xl border border-dashed border-slate-200 px-3 py-8 text-center text-sm text-slate-500">
           Đang tải…
@@ -800,6 +885,10 @@ function SessionsTab({
         <p className="rounded-2xl border border-dashed border-slate-200 bg-white px-3 py-12 text-center text-sm text-slate-500">
           Chưa có buổi học nào. Bấm <strong>Tạo buổi học</strong> để bắt đầu.
         </p>
+      ) : filteredSessions.length === 0 ? (
+        <p className="rounded-2xl border border-dashed border-slate-200 bg-white px-3 py-12 text-center text-sm text-slate-500">
+          Không có buổi nào khớp bộ lọc.
+        </p>
       ) : (
         <>
           {/* Bulk action bar — chỉ hiện khi có item được chọn */}
@@ -807,7 +896,7 @@ function SessionsTab({
             <div className="sticky top-0 z-10 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-indigo-200 bg-indigo-50/80 px-3 py-2 shadow-sm backdrop-blur">
               <p className="text-sm font-semibold text-indigo-900">
                 Đã chọn <span className="font-mono">{selected.size}</span> /{" "}
-                {sessions.length} buổi
+                {filteredSessions.length} buổi
               </p>
               <div className="flex flex-wrap gap-1.5">
                 <button
@@ -847,13 +936,13 @@ function SessionsTab({
                     <input
                       type="checkbox"
                       checked={
-                        sessions.length > 0 &&
-                        sessions.every((s) => selected.has(s.id))
+                        filteredSessions.length > 0 &&
+                        filteredSessions.every((s) => selected.has(s.id))
                       }
                       ref={(el) => {
                         if (!el) return;
-                        const some = sessions.some((s) => selected.has(s.id));
-                        const all = sessions.every((s) => selected.has(s.id));
+                        const some = filteredSessions.some((s) => selected.has(s.id));
+                        const all = filteredSessions.every((s) => selected.has(s.id));
                         el.indeterminate = some && !all;
                       }}
                       onChange={toggleAll}
@@ -867,7 +956,7 @@ function SessionsTab({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {sessions.map((s) => {
+                {paged.map((s) => {
                   const isSel = selected.has(s.id);
                   return (
                     <tr
@@ -923,6 +1012,14 @@ function SessionsTab({
               </tbody>
             </table>
           </div>
+          <Pagination
+            page={page}
+            pageSize={pageSize}
+            total={filteredTotal}
+            onPageChange={setPage}
+            onPageSizeChange={setPageSize}
+            unit="buổi"
+          />
         </>
       )}
 

@@ -1,10 +1,19 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { GraduationCap, Pencil, Plus, Trash2, Users, X } from "lucide-react";
+import {
+  GraduationCap,
+  Pencil,
+  Plus,
+  Search,
+  Trash2,
+  Users,
+  X,
+} from "lucide-react";
 
+import { Pagination, usePagination } from "@/components/ui/pagination";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import {
   createClass,
@@ -22,6 +31,32 @@ export default function ClassesClient() {
   const [editing, setEditing] = useState<ClassRow | "new" | null>(null);
   const [pending, startTransition] = useTransition();
   const [reload, setReload] = useState(0);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("active");
+  const [gradeFilter, setGradeFilter] = useState<"all" | number | "none">("all");
+
+  const filtered = useMemo(() => {
+    let xs = rows;
+    if (statusFilter === "active") xs = xs.filter((c) => c.is_active);
+    else if (statusFilter === "inactive") xs = xs.filter((c) => !c.is_active);
+    if (gradeFilter === "none") xs = xs.filter((c) => c.grade_level == null);
+    else if (typeof gradeFilter === "number")
+      xs = xs.filter((c) => c.grade_level === gradeFilter);
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      xs = xs.filter(
+        (c) =>
+          c.name.toLowerCase().includes(q) ||
+          (c.year_label ?? "").toLowerCase().includes(q),
+      );
+    }
+    return xs;
+  }, [rows, statusFilter, gradeFilter, search]);
+
+  const { page, pageSize, paged, total, setPage, setPageSize } = usePagination(
+    filtered,
+    12,
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -84,7 +119,17 @@ export default function ClassesClient() {
 
   return (
     <div className="space-y-3">
-      <div className="flex justify-end">
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative flex-1 min-w-[220px]">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Tìm tên lớp, khoá…"
+            className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm outline-none focus:border-slate-400"
+          />
+        </div>
         <button
           type="button"
           onClick={() => setEditing("new")}
@@ -95,21 +140,88 @@ export default function ClassesClient() {
         </button>
       </div>
 
+      <div className="flex flex-wrap items-center gap-2 text-xs">
+        <span className="font-semibold text-slate-500">Trạng thái:</span>
+        <div className="flex gap-1 rounded-xl bg-slate-100 p-0.5">
+          {(
+            [
+              ["active", "Hoạt động"],
+              ["inactive", "Đã ngừng"],
+              ["all", "Tất cả"],
+            ] as const
+          ).map(([v, label]) => (
+            <button
+              key={v}
+              type="button"
+              onClick={() => setStatusFilter(v)}
+              className={`rounded-lg px-2.5 py-1 text-xs font-semibold transition ${
+                statusFilter === v
+                  ? "bg-white text-slate-900 shadow-sm"
+                  : "text-slate-500 hover:text-slate-700"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <span className="ml-2 font-semibold text-slate-500">Khối:</span>
+        <select
+          value={gradeFilter === "all" || gradeFilter === "none" ? gradeFilter : String(gradeFilter)}
+          onChange={(e) => {
+            const v = e.target.value;
+            if (v === "all" || v === "none") setGradeFilter(v);
+            else setGradeFilter(Number(v));
+          }}
+          className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs outline-none focus:border-slate-400"
+        >
+          <option value="all">Tất cả</option>
+          <option value="none">Không phân khối</option>
+          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((n) => (
+            <option key={n} value={n}>
+              Khối {n}
+            </option>
+          ))}
+        </select>
+        {(statusFilter !== "active" || gradeFilter !== "all" || search) && (
+          <button
+            type="button"
+            onClick={() => {
+              setStatusFilter("active");
+              setGradeFilter("all");
+              setSearch("");
+            }}
+            className="ml-auto rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+          >
+            Xoá bộ lọc
+          </button>
+        )}
+      </div>
+
       {loading ? (
         <p className="rounded-2xl border border-dashed border-slate-200 px-3 py-8 text-center text-sm text-slate-500">
           Đang tải…
         </p>
-      ) : rows.length === 0 ? (
+      ) : filtered.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-slate-200 bg-white px-3 py-12 text-center">
           <GraduationCap className="mx-auto h-8 w-8 text-slate-300" />
-          <p className="mt-2 text-sm font-medium text-slate-700">Chưa có lớp nào.</p>
+          <p className="mt-2 text-sm font-medium text-slate-700">
+            {rows.length === 0
+              ? "Chưa có lớp nào."
+              : "Không tìm thấy lớp phù hợp với bộ lọc."}
+          </p>
           <p className="mt-1 text-xs text-slate-500">
-            Bấm <strong>Tạo lớp</strong> để bắt đầu.
+            {rows.length === 0 ? (
+              <>
+                Bấm <strong>Tạo lớp</strong> để bắt đầu.
+              </>
+            ) : (
+              <>Đổi bộ lọc hoặc xoá lọc để xem tất cả.</>
+            )}
           </p>
         </div>
       ) : (
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-          {rows.map((c) => (
+          {paged.map((c) => (
             <div
               key={c.id}
               className={`rounded-2xl border border-slate-200 bg-white p-4 shadow-sm ${
@@ -159,6 +271,18 @@ export default function ClassesClient() {
             </div>
           ))}
         </div>
+      )}
+
+      {!loading && filtered.length > 0 && (
+        <Pagination
+          page={page}
+          pageSize={pageSize}
+          total={total}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+          pageSizeOptions={[12, 24, 48, 96]}
+          unit="lớp"
+        />
       )}
 
       {editing && (

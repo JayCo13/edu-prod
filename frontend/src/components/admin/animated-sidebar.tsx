@@ -6,7 +6,6 @@ import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard,
-  BookOpen,
   Calendar,
   CalendarDays,
   CreditCard,
@@ -70,7 +69,11 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Học phí", href: "/dashboard/payments", icon: Receipt, kinds: ["CENTER"] },
   // Admin-managed catalog. CENTER uses it for class definitions; SCHOOL doesn't
   // need it (subjects live inside the timetable section).
-  { label: "Khóa học", href: "/dashboard/courses", icon: BookOpen, kinds: ["CENTER"] },
+  // [HIDDEN per PRD §4.3 (2026-06-04) — domain LMS-shaped, không hợp B2B
+  // trung tâm. /dashboard/courses page vẫn truy cập qua URL cho legacy
+  // data + calendar filter; payroll rate_rules theo course_id giữ
+  // working. Khi Phase 3 cần "Chương trình học", build module riêng
+  // modules/programs/ thay vì revive entry này.
   // Visible in both faces. SCHOOL uses a stripped-down create flow
   // (display_name + color only, no auth account, no invite email — see
   // createTenantTeacher's "lite mode" when email is empty).

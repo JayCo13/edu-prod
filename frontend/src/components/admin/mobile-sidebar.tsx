@@ -6,7 +6,6 @@ import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   LayoutDashboard,
-  BookOpen,
   Calendar,
   CalendarDays,
   CreditCard,
@@ -54,7 +53,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Học sinh", href: "/dashboard/students", icon: Users, kinds: ["CENTER"] },
   { label: "Lớp học", href: "/dashboard/classes", icon: GraduationCap, kinds: ["CENTER"] },
   { label: "Học phí", href: "/dashboard/payments", icon: Receipt, kinds: ["CENTER"] },
-  { label: "Khóa học", href: "/dashboard/courses", icon: BookOpen, kinds: ["CENTER"] },
+  // [HIDDEN per PRD §4.3 (2026-06-04)] — xem comment animated-sidebar.tsx
   { label: "Giáo viên", href: "/dashboard/teachers", icon: UserCog },
   { label: "Bảng lương", href: "/admin/payroll", icon: Wallet, kinds: ["CENTER"] },
   { label: "Lương trường", href: "/admin/school-payroll", icon: Wallet, kinds: ["SCHOOL"] },

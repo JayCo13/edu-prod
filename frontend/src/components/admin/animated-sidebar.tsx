@@ -82,6 +82,10 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Lương trường", href: "/admin/school-payroll", icon: Wallet, kinds: ["SCHOOL"] },
   // Teacher-side surface — admins shouldn't see this (they manage payroll
   // via /admin/payroll). Also CENTER-only since SCHOOL has no payroll.
+  // GV view: lớp được gán dạy / trợ giảng. Visible cho cả admin (vì admin
+  // có thể đồng thời là teacher slot trong CENTER mình) — gate ở page level
+  // bằng currentTeacherId.
+  { label: "Lớp của tôi", href: "/dashboard/my-classes", icon: GraduationCap, kinds: ["CENTER"] },
   { label: "Nhận lương", href: "/dashboard/payouts", icon: Banknote, hideForAdmin: true, kinds: ["CENTER"] },
   // Thanh toán + hoá đơn điện tử — chung cho cả CENTER và SCHOOL admin.
   { label: "Thanh toán", href: "/admin/billing", icon: CreditCard },

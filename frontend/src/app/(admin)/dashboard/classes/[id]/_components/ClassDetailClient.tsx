@@ -10,6 +10,7 @@ import {
   CalendarPlus,
   CalendarRange,
   ClipboardCheck,
+  GraduationCap,
   LogOut,
   Pencil,
   Receipt,
@@ -23,6 +24,7 @@ import AddStudentsModal from "./AddStudentsModal";
 import BulkSessionsModal from "./BulkSessionsModal";
 import BulkPaymentsModal from "./BulkPaymentsModal";
 import BulkEditSessionsModal from "./BulkEditSessionsModal";
+import TeachersTab from "./TeachersTab";
 
 import {
   createClassSession,
@@ -60,7 +62,7 @@ interface StudentInClass extends StudentRow {
 }
 
 export default function ClassDetailClient({ classId, className }: Props) {
-  const [tab, setTab] = useState<"students" | "sessions" | "attendance">("students");
+  const [tab, setTab] = useState<"students" | "teachers" | "sessions" | "attendance">("students");
   const [students, setStudents] = useState<StudentInClass[]>([]);
   const [loading, setLoading] = useState(true);
   const [transferOf, setTransferOf] = useState<StudentInClass | null>(null);
@@ -118,6 +120,16 @@ export default function ClassDetailClient({ classId, className }: Props) {
         >
           <Users className="mr-1 inline h-3.5 w-3.5" />
           Học sinh ({students.length})
+        </button>
+        <button
+          type="button"
+          onClick={() => setTab("teachers")}
+          className={`flex-1 rounded-lg px-3 py-1.5 text-sm font-semibold ${
+            tab === "teachers" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500"
+          }`}
+        >
+          <GraduationCap className="mr-1 inline h-3.5 w-3.5" />
+          Giáo viên
         </button>
         <button
           type="button"
@@ -241,6 +253,10 @@ export default function ClassDetailClient({ classId, className }: Props) {
             </div>
           )}
         </>
+      )}
+
+      {tab === "teachers" && (
+        <TeachersTab classId={classId} className={className} />
       )}
 
       {tab === "sessions" && (
@@ -951,6 +967,7 @@ function SessionsTab({
                   </th>
                   <th className="px-3 py-2.5 text-left">Tiêu đề</th>
                   <th className="px-3 py-2.5 text-left">Thời gian</th>
+                  <th className="px-3 py-2.5 text-left">GV phụ trách</th>
                   <th className="px-3 py-2.5 text-right">Thời lượng</th>
                   <th className="px-3 py-2.5 text-right">Thao tác</th>
                 </tr>
@@ -981,6 +998,15 @@ function SessionsTab({
                       </td>
                       <td className="px-3 py-2.5 font-mono tabular-nums text-slate-700">
                         {formatDateTime(s.start_time)}
+                      </td>
+                      <td className="px-3 py-2.5 text-slate-700">
+                        {s.teacher_name ? (
+                          <span>{s.teacher_name}</span>
+                        ) : (
+                          <span className="text-xs italic text-amber-700">
+                            Chưa gán GV
+                          </span>
+                        )}
                       </td>
                       <td className="px-3 py-2.5 text-right font-mono tabular-nums text-slate-600">
                         {s.duration_minutes} phút

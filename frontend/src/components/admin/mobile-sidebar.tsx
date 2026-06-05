@@ -41,6 +41,7 @@ interface NavItem {
   href: string;
   icon: React.ComponentType<{ className?: string }>;
   hideForAdmin?: boolean;
+  adminOnly?: boolean;
   kinds?: readonly TenantKind[];
   betaFor?: readonly TenantKind[];
 }
@@ -50,17 +51,17 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { label: "Lịch dạy", href: "/dashboard/calendar", icon: Calendar, kinds: ["CENTER"] },
   { label: "Thời khoá biểu", href: "/dashboard/timetable", icon: CalendarDays, kinds: ["SCHOOL"] },
-  { label: "Học sinh", href: "/dashboard/students", icon: Users, kinds: ["CENTER"] },
-  { label: "Lớp học", href: "/dashboard/classes", icon: GraduationCap, kinds: ["CENTER"] },
-  { label: "Học phí", href: "/dashboard/payments", icon: Receipt, kinds: ["CENTER"] },
+  { label: "Học sinh", href: "/dashboard/students", icon: Users, kinds: ["CENTER"], adminOnly: true },
+  { label: "Lớp học", href: "/dashboard/classes", icon: GraduationCap, kinds: ["CENTER"], adminOnly: true },
+  { label: "Học phí", href: "/dashboard/payments", icon: Receipt, kinds: ["CENTER"], adminOnly: true },
   // [HIDDEN per PRD §4.3 (2026-06-04)] — xem comment animated-sidebar.tsx
-  { label: "Giáo viên", href: "/dashboard/teachers", icon: UserCog },
-  { label: "Bảng lương", href: "/admin/payroll", icon: Wallet, kinds: ["CENTER"] },
-  { label: "Lương trường", href: "/admin/school-payroll", icon: Wallet, kinds: ["SCHOOL"] },
+  { label: "Giáo viên", href: "/dashboard/teachers", icon: UserCog, adminOnly: true },
+  { label: "Bảng lương", href: "/admin/payroll", icon: Wallet, kinds: ["CENTER"], adminOnly: true },
+  { label: "Lương trường", href: "/admin/school-payroll", icon: Wallet, kinds: ["SCHOOL"], adminOnly: true },
   { label: "Lớp của tôi", href: "/dashboard/my-classes", icon: GraduationCap, hideForAdmin: true, kinds: ["CENTER"] },
   { label: "Nhận lương", href: "/dashboard/payouts", icon: Banknote, hideForAdmin: true, kinds: ["CENTER"] },
-  { label: "Thanh toán", href: "/admin/billing", icon: CreditCard },
-  { label: "Cài đặt", href: "/admin/settings", icon: Settings },
+  { label: "Thanh toán", href: "/admin/billing", icon: CreditCard, adminOnly: true },
+  { label: "Cài đặt", href: "/admin/settings", icon: Settings, adminOnly: true },
   // [DEPRECATED per PRD §4.3] - hidden 2026-05-12 — teacher public storefront out of scope
   // { label: "Trang cá nhân", href: "/dashboard/profile", icon: Settings },
 ];
@@ -120,6 +121,7 @@ export default function MobileSidebar() {
   const effectiveKind: TenantKind = kind ?? "CENTER";
   const visibleItems = NAV_ITEMS.filter((it) => {
     if (isAdmin === true && it.hideForAdmin) return false;
+    if (isAdmin === false && it.adminOnly) return false;
     if (it.kinds && !it.kinds.includes(effectiveKind)) return false;
     return true;
   });

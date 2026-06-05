@@ -45,6 +45,10 @@ interface NavItem {
    *  Used for teacher-only surfaces like "Nhận lương" — admins don't
    *  receive payouts, they pay them out. */
   hideForAdmin?: boolean;
+  /** Hide this item when the viewer's role at the active tenant is teacher
+   *  (i.e. NOT admin). Used for admin-only management surfaces — teacher
+   *  doesn't need to see "Học sinh", "Học phí", "Cài đặt"... */
+  adminOnly?: boolean;
   /** Which product face this item belongs to. Omit = always visible.
    *  Migration 0031 introduced the CENTER/SCHOOL split chosen at signup. */
   kinds?: readonly TenantKind[];
@@ -62,11 +66,11 @@ const NAV_ITEMS: NavItem[] = [
   // Generates exportable timetable; doesn't drive payroll.
   { label: "Thời khoá biểu", href: "/dashboard/timetable", icon: CalendarDays, kinds: ["SCHOOL"] },
   // CENTER-only: quản lý học sinh + Excel import. Mã HS auto + lịch sử lớp.
-  { label: "Học sinh", href: "/dashboard/students", icon: Users, kinds: ["CENTER"] },
-  // CENTER-only: lớp học (HS được đăng ký vào).
-  { label: "Lớp học", href: "/dashboard/classes", icon: GraduationCap, kinds: ["CENTER"] },
+  { label: "Học sinh", href: "/dashboard/students", icon: Users, kinds: ["CENTER"], adminOnly: true },
+  // CENTER-only: lớp học (HS được đăng ký vào). GV dùng "Lớp của tôi" thay.
+  { label: "Lớp học", href: "/dashboard/classes", icon: GraduationCap, kinds: ["CENTER"], adminOnly: true },
   // CENTER-only: học phí — sắp tới hạn / quá hạn cảnh báo + ghi nhận thu.
-  { label: "Học phí", href: "/dashboard/payments", icon: Receipt, kinds: ["CENTER"] },
+  { label: "Học phí", href: "/dashboard/payments", icon: Receipt, kinds: ["CENTER"], adminOnly: true },
   // Admin-managed catalog. CENTER uses it for class definitions; SCHOOL doesn't
   // need it (subjects live inside the timetable section).
   // [HIDDEN per PRD §4.3 (2026-06-04) — domain LMS-shaped, không hợp B2B
@@ -77,21 +81,23 @@ const NAV_ITEMS: NavItem[] = [
   // Visible in both faces. SCHOOL uses a stripped-down create flow
   // (display_name + color only, no auth account, no invite email — see
   // createTenantTeacher's "lite mode" when email is empty).
-  { label: "Giáo viên", href: "/dashboard/teachers", icon: UserCog },
+  // Admin-only: GV không cần quản lý danh sách đồng nghiệp.
+  { label: "Giáo viên", href: "/dashboard/teachers", icon: UserCog, adminOnly: true },
   // Killer feature (PRD §5.8) — CENTER only. SCHOOL is a TKB utility, not a
-  // payroll product.
-  { label: "Bảng lương", href: "/admin/payroll", icon: Wallet, kinds: ["CENTER"] },
+  // payroll product. Admin-only: GV xem lương qua "Nhận lương".
+  { label: "Bảng lương", href: "/admin/payroll", icon: Wallet, kinds: ["CENTER"], adminOnly: true },
   // SCHOOL-only: lương thừa giờ + dạy thay theo TT 05+21/2025.
-  { label: "Lương trường", href: "/admin/school-payroll", icon: Wallet, kinds: ["SCHOOL"] },
+  { label: "Lương trường", href: "/admin/school-payroll", icon: Wallet, kinds: ["SCHOOL"], adminOnly: true },
   // Teacher-side surface — admins shouldn't see this (they manage payroll
   // via /admin/payroll). Also CENTER-only since SCHOOL has no payroll.
   // GV view: lớp được gán dạy / trợ giảng. Ẩn cho admin — admin có
   // /dashboard/classes để quản tất cả lớp, không cần view "của tôi".
   { label: "Lớp của tôi", href: "/dashboard/my-classes", icon: GraduationCap, hideForAdmin: true, kinds: ["CENTER"] },
   { label: "Nhận lương", href: "/dashboard/payouts", icon: Banknote, hideForAdmin: true, kinds: ["CENTER"] },
-  // Thanh toán + hoá đơn điện tử — chung cho cả CENTER và SCHOOL admin.
-  { label: "Thanh toán", href: "/admin/billing", icon: CreditCard },
-  { label: "Cài đặt", href: "/admin/settings", icon: Settings },
+  // Thanh toán + hoá đơn điện tử — admin trung tâm trả gói SaaS, GV không
+  // liên quan.
+  { label: "Thanh toán", href: "/admin/billing", icon: CreditCard, adminOnly: true },
+  { label: "Cài đặt", href: "/admin/settings", icon: Settings, adminOnly: true },
   // [DEPRECATED per PRD §4.3] - hidden 2026-05-12 — teacher public storefront out of scope
   // { label: "Trang cá nhân", href: "/dashboard/profile", icon: Settings },
 ];
@@ -147,6 +153,7 @@ export default function AnimatedSidebar() {
   const effectiveKind: TenantKind = kind ?? "CENTER";
   const visibleItems = NAV_ITEMS.filter((it) => {
     if (isAdmin === true && it.hideForAdmin) return false;
+    if (isAdmin === false && it.adminOnly) return false;
     if (it.kinds && !it.kinds.includes(effectiveKind)) return false;
     return true;
   });

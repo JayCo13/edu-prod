@@ -1,9 +1,7 @@
 import type { Metadata } from "next";
 import { resolveCenterId } from "@/lib/auth/resolveCenterId";
 import { getCenterById } from "@/modules/centers/service";
-import { getPayrollEngineMode } from "@/modules/payroll/engine-mode-actions";
 import SettingsForm from "@/modules/centers/components/SettingsForm";
-import PayrollEngineModeCard from "./_components/PayrollEngineModeCard";
 
 export const metadata: Metadata = {
   title: "Cấu hình trung tâm — Edura",
@@ -63,15 +61,6 @@ export default async function CenterSettingsPage() {
       </header>
 
       <SettingsForm center={centerResult.data} canEdit={canEdit} />
-
-      {canEdit && <PayrollEngineModeCardServer />}
     </div>
   );
-}
-
-// ── Server wrapper để tránh fetch khi không canEdit ─────────────────────
-async function PayrollEngineModeCardServer() {
-  const r = await getPayrollEngineMode();
-  if (!r.success) return null;
-  return <PayrollEngineModeCard initialMode={r.data.mode} />;
 }

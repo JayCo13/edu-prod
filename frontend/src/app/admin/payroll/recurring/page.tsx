@@ -1,4 +1,6 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
 
 import { getCurrentTenantContext } from "@/lib/tenant-context-server";
 import { getTenantTeachers } from "@/app/actions/tenant-teachers";
@@ -20,6 +22,13 @@ export default async function RecurringAdjustmentsPage() {
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 p-4 sm:p-6">
+      <Link
+        href="/admin/payroll"
+        className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 transition-colors hover:text-slate-900"
+      >
+        <ArrowLeft className="h-3.5 w-3.5" />
+        Quay lại Bảng lương
+      </Link>
       <header>
         <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
           Bảng lương

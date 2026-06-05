@@ -14,9 +14,9 @@ import {
 
 /**
  * "?" button on the payroll page header. Opens a Vietnamese walkthrough of
- * the DRAFT → APPROVED → PAID lifecycle and the timing recommendation for
- * "Duyệt và khoá". Self-contained dialog (no global confirm — this is
- * informational only with a single "Đã hiểu" dismiss).
+ * the payroll lifecycle (Đang soạn → Đã duyệt → Đã thanh toán) and timing
+ * recommendation for "Duyệt và khoá". Copy hướng đến chủ trung tâm — KHÔNG
+ * dùng URL hay tên cột DB; gọi tính năng theo tên trong sidebar / nút bấm.
  */
 export default function WorkflowHelpButton() {
   const [open, setOpen] = useState(false);
@@ -61,7 +61,7 @@ export default function WorkflowHelpButton() {
                     Quy trình bảng lương
                   </h2>
                   <p className="mt-0.5 text-xs text-slate-500">
-                    DRAFT → APPROVED → PAID, và lúc nào nên bấm gì.
+                    Đang soạn → Đã duyệt → Đã thanh toán. Lúc nào nên bấm gì.
                   </p>
                 </div>
                 <button
@@ -80,71 +80,71 @@ export default function WorkflowHelpButton() {
                     1. Chuẩn bị trước kỳ
                   </h3>
                   <p className="mt-1.5">
-                    Vào{" "}
-                    <span className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[12px]">
-                      /dashboard/teachers
-                    </span>{" "}
-                    để đảm bảo mỗi giáo viên đã có <strong>Hình thức trả
-                    lương</strong> và <strong>đơn giá</strong> đúng (theo
-                    giờ / theo buổi / cố định / kết hợp). Nếu rate = 0 thì
-                    "Cơ bản" sẽ ra 0đ.
+                    Vào mục <strong>Giáo viên</strong> ở thanh bên, kiểm tra
+                    mỗi giáo viên đã có <strong>hình thức trả lương</strong>{" "}
+                    (theo giờ / theo buổi / cố định / kết hợp) và{" "}
+                    <strong>đơn giá</strong> đúng. Nếu đơn giá bằng 0 thì
+                    phần lương cơ bản sẽ ra 0đ.
                   </p>
                 </section>
 
                 <Step
                   icon={CalendarClock}
-                  badge="DRAFT"
+                  badge="Đang soạn"
                   badgeClass="bg-slate-100 text-slate-700"
                   title="2. Tạo kỳ lương"
                 >
-                  Đầu tháng (hoặc đến ngày trả lương đã cấu hình) bấm{" "}
-                  <strong>“Tạo kỳ lương mới”</strong>. Hệ thống tự nạp tất cả
-                  giáo viên đang hoạt động + buổi học trong tháng và tính lương
-                  cơ bản. Kỳ ở trạng thái <strong>DRAFT</strong> — vẫn sửa được.
+                  Đầu tháng (hoặc đến ngày trả lương đã đặt) bấm{" "}
+                  <strong>“Tạo kỳ lương mới”</strong>. Hệ thống tự lấy tất cả
+                  giáo viên đang hoạt động + các buổi đã dạy trong tháng để
+                  tính lương cơ bản. Kỳ mới ở trạng thái{" "}
+                  <strong>Đang soạn</strong> — bạn vẫn chỉnh sửa được.
                 </Step>
 
                 <Step
                   icon={RefreshCw}
-                  badge="DRAFT"
+                  badge="Đang soạn"
                   badgeClass="bg-slate-100 text-slate-700"
                   title="3. Rà soát & điều chỉnh"
                 >
-                  Mở chi tiết kỳ → kiểm tra từng giáo viên → thêm{" "}
+                  Mở chi tiết kỳ lương, xem từng giáo viên, thêm{" "}
                   <strong>Phụ cấp / Khấu trừ</strong> nếu cần (kèm lý do).
-                  Nếu vừa sửa rate trong trang Giáo viên, bấm{" "}
-                  <strong>“Tính lại”</strong> để cập nhật snapshot. Điều chỉnh
-                  thủ công được giữ nguyên khi tính lại.
+                  Nếu vừa sửa đơn giá ở mục Giáo viên, bấm{" "}
+                  <strong>“Tính lại”</strong> để cập nhật số tiền. Các điều
+                  chỉnh thủ công đã thêm trước đó sẽ được giữ nguyên khi
+                  tính lại.
                 </Step>
 
                 <Step
                   icon={Lock}
-                  badge="APPROVED"
+                  badge="Đã duyệt"
                   badgeClass="bg-indigo-100 text-indigo-700"
                   title="4. Duyệt và khoá"
                 >
                   Khi mọi con số đã đúng, bấm <strong>“Duyệt và khoá”</strong>.
-                  Snapshot bị đóng băng vĩnh viễn — không thể thêm điều chỉnh
-                  hay tính lại nữa. Nếu phát hiện sai sót sau bước này, chỉ
-                  có thể bù trừ ở kỳ kế.
+                  Toàn bộ bảng lương sẽ được đóng băng — không thể thêm điều
+                  chỉnh hay tính lại nữa. Nếu sau đó phát hiện sai sót, bạn
+                  chỉ có thể bù trừ ở kỳ lương kế tiếp.
                   <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50/80 px-3 py-2 text-xs text-amber-900">
-                    <strong>Khuyến nghị thời điểm:</strong> duyệt sát ngày trả
-                    lương (1–2 ngày trước hoặc ngay sáng ngày trả lương),
-                    không duyệt quá sớm. Nếu cấu hình ngày trả lương = 5, nên
-                    rà soát xong ngày 3–4 rồi duyệt ngày 5.
+                    <strong>Khuyến nghị thời điểm:</strong> duyệt sát ngày
+                    trả lương (trước 1–2 ngày hoặc ngay sáng ngày trả), không
+                    nên duyệt quá sớm. Ví dụ trung tâm trả lương ngày 5: rà
+                    soát ngày 3–4, bấm duyệt ngày 5.
                   </div>
                 </Step>
 
                 <Step
                   icon={Wallet}
-                  badge="PAID"
+                  badge="Đã thanh toán"
                   badgeClass="bg-emerald-100 text-emerald-700"
                   title="5. Thanh toán + đánh dấu"
                 >
-                  Chuyển khoản thật cho từng giáo viên (qua ngân hàng / ví).
-                  Sau đó bấm <strong>“Đã thanh toán”</strong> — hệ thống ghi
-                  lại <span className="font-mono">paid_at</span> và khoá kỳ
-                  vĩnh viễn. <strong>“Xuất Excel”</strong> dùng để in / ký /
-                  đối chiếu sổ kế toán.
+                  Chuyển khoản thực cho từng giáo viên (qua ngân hàng hoặc
+                  trao tiền mặt). Sau khi chuyển xong, bấm{" "}
+                  <strong>“Đã thanh toán”</strong> — hệ thống ghi lại thời
+                  điểm trả và khoá kỳ vĩnh viễn. Nút{" "}
+                  <strong>“Xuất Excel”</strong> dùng để in, ký, đối chiếu sổ
+                  kế toán.
                 </Step>
 
                 <section className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
@@ -153,11 +153,13 @@ export default function WorkflowHelpButton() {
                     Lịch trả lương tự động
                   </h3>
                   <p className="mt-1.5 text-xs leading-snug text-slate-600">
-                    Trong banner "Lịch trả lương" có thể đặt ngày trong tháng
-                    (1–31). Đến đúng ngày đó (hoặc sau đó), mỗi lần vào trang
-                    này hệ thống sẽ tự tạo bảng lương cho tháng vừa qua nếu
-                    chưa có. Không tự duyệt — admin vẫn phải xem xét và bấm
-                    "Duyệt và khoá" thủ công.
+                    Ở khu vực <strong>“Lịch trả lương”</strong> đầu trang, bạn
+                    có thể đặt ngày trả lương trong tháng (từ 1 đến 31). Đến
+                    đúng ngày đó (hoặc sau đó), mỗi lần bạn mở trang Bảng
+                    lương, hệ thống sẽ tự tạo kỳ lương cho tháng vừa qua
+                    nếu chưa có. Hệ thống <strong>không tự duyệt</strong> —
+                    bạn vẫn phải xem lại và bấm <strong>“Duyệt và khoá”</strong>{" "}
+                    bằng tay.
                   </p>
                 </section>
               </div>

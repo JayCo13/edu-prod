@@ -183,6 +183,48 @@ The earlier magic-link invite path (`auth.admin.inviteUserByEmail` + `/auth/setu
 - Names: UTF-8, support diacritics
 - Search: **diacritic-insensitive** ("nguyen" matches "Nguyễn")
 
+**VND amount inputs** — every input that accepts a money value must use the shared helpers in `frontend/src/lib/format/vnd.ts` so the admin sees a properly formatted number while typing:
+
+```tsx
+import { formatVndDigits, parseVndDigits } from "@/lib/format/vnd";
+
+// In a controlled input:
+<input
+  type="text"
+  inputMode="numeric"
+  value={tuition}
+  onChange={(e) => setTuition(formatVndDigits(e.target.value))}
+  className="font-mono tabular-nums pr-8"
+  placeholder="1.500.000"
+/>
+// suffix "đ" floating right of the input
+
+// On submit:
+const amountVnd = parseVndDigits(tuition);  // → integer đồng
+```
+
+Don't use `<input type="number">` for money — it disables thousand-separator formatting and lets the browser inject decimal/spinner UI that doesn't fit VN locale. Existing examples to copy: `AddStudentsModal`, `EnrollClassModal`, `PaymentsClient`, `RateRuleForm`.
+
+**End-user copy — plain Vietnamese only.** Form labels / hint text / dialog descriptions / toasts target trung tâm owners, not engineers. Avoid:
+
+- English tech terms: `fallback`, `priority`, `tie-break`, `snapshot`, `rate`, `recurrence`, `payload`, `enum`, `null`, `undefined`, `is_active`, `default`
+- DB column names: `tuition_amount_vnd`, `payment_day`, `teacher_id`, `class_id`, `enrollment_id`, `effective_from`/`to`
+- Code-y constructs in copy: `Lớp ≻ Khoá ≻ Mặc định` (logic operator), `==`/`!=`, `(1-31)` (write "từ 1 đến 31"), URL paths shown as text
+- Cryptic abbreviations: `GVCN` only if context makes it clear, prefer "giáo viên chủ nhiệm"
+
+Rewrite into natural Vietnamese describing **business intent**:
+
+| Avoid | Use |
+|---|---|
+| "Mặc định (fallback)" | "Tất cả lớp của giáo viên" |
+| "Cao = thắng tie-break" | "Số lớn hơn sẽ được chọn nếu có nhiều đơn giá cùng áp dụng" |
+| "Để trống = vô thời hạn" | "Để trống nếu không giới hạn" |
+| "Snapshot bị đóng băng" | "Bảng lương sẽ được đóng băng" |
+| "tuition_amount_vnd" | "mức học phí đã ghi" |
+| "/dashboard/teachers" | "mục Giáo viên ở thanh bên" |
+
+If a screen targets developers/superusers explicitly (debug tools, raw audit logs), tech vocabulary is OK — but those screens are rare. Default is plain Vietnamese.
+
 ### 8.4 Mobile-first for teachers (PRD §7.3)
 
 Teacher views (attendance, today's schedule) are used on phones in noisy classrooms. Bottom navigation, 44px+ tap targets, page load <2s on 3G, offline-capable attendance queue where feasible.

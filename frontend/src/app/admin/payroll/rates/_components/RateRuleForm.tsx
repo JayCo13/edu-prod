@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Loader2, X } from "lucide-react";
 
+import { formatVndDigits, parseVndDigits } from "@/lib/format/vnd";
 import type {
   RateRuleInput,
   RateRuleRow,
@@ -42,15 +43,19 @@ export default function RateRuleForm({
   const [structure, setStructure] = useState<
     "HOURLY" | "PER_SESSION" | "FIXED_MONTHLY" | "HYBRID"
   >(initial?.payment_structure ?? "HOURLY");
+  // VND inputs: state lưu chuỗi đã format dấu chấm để render trực tiếp;
+  // parseVndDigits khi submit. Đầu vào của initial là số nguyên đồng.
   const [hourly, setHourly] = useState(
-    initial?.hourly_rate != null ? String(initial.hourly_rate) : "",
+    initial?.hourly_rate != null ? formatVndDigits(String(initial.hourly_rate)) : "",
   );
   const [perSession, setPerSession] = useState(
-    initial?.per_session_rate != null ? String(initial.per_session_rate) : "",
+    initial?.per_session_rate != null
+      ? formatVndDigits(String(initial.per_session_rate))
+      : "",
   );
   const [fixedMonthly, setFixedMonthly] = useState(
     initial?.fixed_monthly_amount != null
-      ? String(initial.fixed_monthly_amount)
+      ? formatVndDigits(String(initial.fixed_monthly_amount))
       : "",
   );
   const [effFrom, setEffFrom] = useState(initial?.effective_from ?? today());
@@ -78,9 +83,9 @@ export default function RateRuleForm({
       scope,
       scope_id: scope === "TEACHER_DEFAULT" ? null : scopeId,
       payment_structure: structure,
-      hourly_rate: showHourly() ? Number(hourly) || 0 : null,
-      per_session_rate: showPerSession() ? Number(perSession) || 0 : null,
-      fixed_monthly_amount: showFixed() ? Number(fixedMonthly) || 0 : null,
+      hourly_rate: showHourly() ? parseVndDigits(hourly) : null,
+      per_session_rate: showPerSession() ? parseVndDigits(perSession) : null,
+      fixed_monthly_amount: showFixed() ? parseVndDigits(fixedMonthly) : null,
       effective_from: effFrom,
       effective_to: effTo || null,
       priority: Number(priority) || 0,
@@ -185,59 +190,43 @@ export default function RateRuleForm({
           </div>
 
           <Field>
-            <Label>Cấu trúc lương</Label>
+            <Label>Hình thức trả lương</Label>
             <select
               value={structure}
               onChange={(e) => setStructure(e.target.value as typeof structure)}
               className={inputCls}
             >
-              <option value="HOURLY">Theo giờ (HOURLY)</option>
-              <option value="PER_SESSION">Theo buổi (PER_SESSION)</option>
-              <option value="FIXED_MONTHLY">Lương tháng cố định</option>
-              <option value="HYBRID">Kết hợp (HYBRID)</option>
+              <option value="HOURLY">Theo giờ</option>
+              <option value="PER_SESSION">Theo buổi</option>
+              <option value="FIXED_MONTHLY">Cố định theo tháng</option>
+              <option value="HYBRID">Kết hợp (theo giờ + theo buổi + cố định)</option>
             </select>
           </Field>
 
           <div className="grid gap-3 sm:grid-cols-3">
             {showHourly() && (
               <Field>
-                <Label>Giá / giờ (đ)</Label>
-                <input
-                  type="number"
-                  min={0}
-                  step={1000}
-                  value={hourly}
-                  onChange={(e) => setHourly(e.target.value)}
-                  placeholder="250000"
-                  className={inputCls}
-                />
+                <Label>Giá mỗi giờ</Label>
+                <VndInput value={hourly} onChange={setHourly} placeholder="250.000" />
               </Field>
             )}
             {showPerSession() && (
               <Field>
-                <Label>Giá / buổi (đ)</Label>
-                <input
-                  type="number"
-                  min={0}
-                  step={1000}
+                <Label>Giá mỗi buổi</Label>
+                <VndInput
                   value={perSession}
-                  onChange={(e) => setPerSession(e.target.value)}
-                  placeholder="350000"
-                  className={inputCls}
+                  onChange={setPerSession}
+                  placeholder="350.000"
                 />
               </Field>
             )}
             {showFixed() && (
               <Field>
-                <Label>Lương tháng (đ)</Label>
-                <input
-                  type="number"
-                  min={0}
-                  step={1000}
+                <Label>Lương cố định mỗi tháng</Label>
+                <VndInput
                   value={fixedMonthly}
-                  onChange={(e) => setFixedMonthly(e.target.value)}
-                  placeholder="10000000"
-                  className={inputCls}
+                  onChange={setFixedMonthly}
+                  placeholder="10.000.000"
                 />
               </Field>
             )}
@@ -245,7 +234,7 @@ export default function RateRuleForm({
 
           <div className="grid gap-3 sm:grid-cols-3">
             <Field>
-              <Label>Hiệu lực từ</Label>
+              <Label>Áp dụng từ ngày</Label>
               <input
                 type="date"
                 required
@@ -255,17 +244,19 @@ export default function RateRuleForm({
               />
             </Field>
             <Field>
-              <Label>Hiệu lực đến</Label>
+              <Label>Áp dụng đến ngày</Label>
               <input
                 type="date"
                 value={effTo}
                 onChange={(e) => setEffTo(e.target.value)}
                 className={inputCls}
               />
-              <p className="mt-1 text-[11px] text-slate-500">Để trống = vô thời hạn</p>
+              <p className="mt-1 text-[11px] text-slate-500">
+                Để trống nếu không giới hạn.
+              </p>
             </Field>
             <Field>
-              <Label>Ưu tiên</Label>
+              <Label>Thứ tự ưu tiên</Label>
               <input
                 type="number"
                 min={0}
@@ -274,7 +265,9 @@ export default function RateRuleForm({
                 onChange={(e) => setPriority(e.target.value)}
                 className={inputCls}
               />
-              <p className="mt-1 text-[11px] text-slate-500">Cao = thắng tie-break</p>
+              <p className="mt-1 text-[11px] text-slate-500">
+                Số lớn hơn sẽ được chọn nếu có nhiều đơn giá cùng áp dụng.
+              </p>
             </Field>
           </div>
 
@@ -312,5 +305,33 @@ function Label({ children }: { children: React.ReactNode }) {
     <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500">
       {children}
     </label>
+  );
+}
+
+// Input VND tái dùng — format chấm phân nhóm khi gõ, suffix "đ".
+// Cùng pattern với AddStudentsModal / PaymentsClient (lib/format/vnd.ts).
+function VndInput({
+  value,
+  onChange,
+  placeholder,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+}) {
+  return (
+    <div className="relative">
+      <input
+        type="text"
+        inputMode="numeric"
+        value={value}
+        onChange={(e) => onChange(formatVndDigits(e.target.value))}
+        placeholder={placeholder}
+        className={`${inputCls} pr-8 font-mono tabular-nums`}
+      />
+      <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-slate-400">
+        đ
+      </span>
+    </div>
   );
 }

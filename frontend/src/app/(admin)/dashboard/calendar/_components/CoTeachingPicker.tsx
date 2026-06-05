@@ -131,7 +131,7 @@ export default function CoTeachingPicker({
           <div className="flex items-center gap-2">
             <Users className="h-4 w-4 text-slate-500" />
             <h2 className="text-base font-bold text-slate-900">
-              Co-teaching — chia lương buổi học
+              Nhiều giáo viên cùng dạy — chia lương buổi học
             </h2>
           </div>
           <button
@@ -151,10 +151,10 @@ export default function CoTeachingPicker({
           <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50/60 px-3 py-2 text-[12px] text-amber-900">
             <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
             <span>
-              Tỷ lệ chỉ áp cho phần lương theo giờ (HOURLY) và theo buổi
-              (PER_SESSION). Lương cứng tháng (FIXED_MONTHLY) hoặc phần fixed
-              của HYBRID KHÔNG chia — toàn bộ phần đó cộng đủ một lần cho
-              giáo viên có rule, không phụ thuộc tỷ lệ.
+              Tỷ lệ chỉ áp dụng cho phần lương <strong>theo giờ</strong> và{" "}
+              <strong>theo buổi</strong>. Phần lương <strong>cố định
+              theo tháng</strong> không chia tỷ lệ — giáo viên có đơn giá cố
+              định sẽ nhận đủ một lần, không phụ thuộc tỷ lệ trong buổi này.
             </span>
           </div>
 

@@ -122,7 +122,7 @@ export default function AdjustmentDialog({
 
           <label className="block">
             <span className="mb-1.5 block text-sm font-medium text-slate-700">
-              Số tiền (VND)
+              Số tiền
             </span>
             <div className="relative">
               <input

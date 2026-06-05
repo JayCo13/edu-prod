@@ -120,7 +120,7 @@ export default function FeedbackForm() {
               type="email"
               required
               maxLength={200}
-              placeholder="ban@example.com"
+              placeholder="ban@trungtam.vn"
               disabled={pending}
             />
           </Field>

@@ -129,7 +129,7 @@ export default function BillingInfoForm({ initial }: Props) {
               type="email"
               required
               defaultValue={initial?.recipient_email ?? ""}
-              placeholder="ketoan@example.com"
+              placeholder="ketoan@trungtam.vn"
               maxLength={200}
             />
           </Field>

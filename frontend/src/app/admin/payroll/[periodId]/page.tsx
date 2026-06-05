@@ -56,12 +56,11 @@ export default async function PayrollPeriodDetailPage({ params }: PageProps) {
             {period.notes ? <span className="ml-2 text-slate-400">· {period.notes}</span> : null}
           </p>
         </div>
-        <Link
-          href={`/admin/payroll/${periodId}/shadow`}
-          className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 shadow-sm transition-colors hover:bg-slate-50"
-        >
-          So sánh engine →
-        </Link>
+        {/* [HIDDEN 2026-06-05] — Link "So sánh engine" cho shadow-run.
+            Sau khi default engine sang NEW (migration 0042) + bỏ toggle
+            ở /admin/settings, admin trung tâm không cần thấy nữa. Trang
+            /admin/payroll/{id}/shadow vẫn truy cập qua URL cho dev/debug
+            khi cần shadow-test future engines. */}
       </header>
 
       <PeriodDetailClient period={period} payoutDay={payoutDay} />

@@ -35,7 +35,7 @@ export async function getPayrollEngineMode(): Promise<
       .single();
     return {
       success: true,
-      data: { mode: (data?.payroll_engine_mode as EngineMode) ?? "OLD" },
+      data: { mode: (data?.payroll_engine_mode as EngineMode) ?? "NEW" },
     };
   } catch (e) {
     return err(e);
@@ -61,7 +61,7 @@ export async function setPayrollEngineMode(
       .select("payroll_engine_mode")
       .eq("id", tenant.id)
       .single();
-    const oldMode = (before?.payroll_engine_mode as EngineMode) ?? "OLD";
+    const oldMode = (before?.payroll_engine_mode as EngineMode) ?? "NEW";
 
     if (oldMode === parsed.data.mode) {
       return { success: true };

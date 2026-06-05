@@ -160,16 +160,17 @@ export async function createPayrollPeriod(input: {
 
     const rules = { ...DEFAULT_RULES, ...input.rules };
 
-    // ── Engine mode (Migration 0038) ─────────────────────────────────
+    // ── Engine mode (Migration 0038, default NEW từ 0042) ─────────────
     // Đọc payroll_engine_mode từ tenant. OLD = chỉ chạy path cũ.
     // SHADOW = chạy cả 2, lưu OLD, log diff. NEW = chỉ chạy path mới.
+    // Mặc định 'NEW' kể từ 2026-06-05 — engine mới là path chính.
     const { data: tenantRow } = await supabase
       .from("tenants")
       .select("payroll_engine_mode")
       .eq("id", auth.centerId)
       .single();
     const engineMode: "OLD" | "SHADOW" | "NEW" =
-      (tenantRow?.payroll_engine_mode as "OLD" | "SHADOW" | "NEW") ?? "OLD";
+      (tenantRow?.payroll_engine_mode as "OLD" | "SHADOW" | "NEW") ?? "NEW";
 
     // Pre-fetch resolver inputs nếu cần chạy path mới.
     let resolverInputs = null;

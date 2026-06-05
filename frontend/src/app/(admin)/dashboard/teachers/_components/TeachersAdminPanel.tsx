@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
+import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
@@ -867,34 +868,19 @@ export default function TeachersAdminPanel({
                       </div>
                     </div>
 
-                    {STRUCTURE_FIELDS[form.payment_structure].hourly && (
-                      <RateField
-                        label="Đơn giá / giờ"
-                        suffix="đ"
-                        value={form.hourly_rate}
-                        onChange={(v) => setForm({ ...form, hourly_rate: v })}
-                      />
-                    )}
-                    {STRUCTURE_FIELDS[form.payment_structure].perSession && (
-                      <RateField
-                        label="Đơn giá / buổi"
-                        suffix="đ"
-                        value={form.per_session_rate}
-                        onChange={(v) =>
-                          setForm({ ...form, per_session_rate: v })
-                        }
-                      />
-                    )}
-                    {STRUCTURE_FIELDS[form.payment_structure].fixedMonthly && (
-                      <RateField
-                        label="Lương cố định / tháng"
-                        suffix="đ"
-                        value={form.fixed_monthly_amount}
-                        onChange={(v) =>
-                          setForm({ ...form, fixed_monthly_amount: v })
-                        }
-                      />
-                    )}
+                    <div className="rounded-xl border border-indigo-200 bg-indigo-50/60 px-3 py-2.5 text-xs leading-relaxed text-indigo-900">
+                      Số tiền cụ thể (đồng/giờ, đồng/buổi, đồng/tháng) được
+                      nhập ở mục <strong>Đơn giá</strong> trong Bảng lương —
+                      cho phép đặt mức khác nhau theo từng lớp / khoá / giai
+                      đoạn. Tại đây chỉ chọn <strong>hình thức trả</strong>{" "}
+                      tổng quát.
+                      <Link
+                        href="/admin/payroll/rates"
+                        className="mt-1.5 inline-flex items-center gap-1 font-semibold text-indigo-700 hover:underline"
+                      >
+                        Đến trang Đơn giá →
+                      </Link>
+                    </div>
 
                     <div>
                       <label className="mb-1.5 flex items-center justify-between text-xs font-medium text-slate-600">
@@ -1362,53 +1348,10 @@ function RolesManager({
   );
 }
 
-/** VND amount input with thousand-separator hint. Stores an integer; the
- *  user types digits, we render with dots, and parse on every keystroke. */
-function RateField({
-  label,
-  value,
-  onChange,
-  suffix = "đ",
-}: {
-  label: string;
-  value: number;
-  onChange: (next: number) => void;
-  suffix?: string;
-}) {
-  // Local string so the user can clear the field without it jumping to "0".
-  const [text, setText] = useState<string>(value > 0 ? formatVND(value) : "");
-
-  useEffect(() => {
-    // Sync from outside when the structure toggle changes which fields render.
-    setText(value > 0 ? formatVND(value) : "");
-  }, [value]);
-
-  return (
-    <div>
-      <label className="mb-1.5 block text-xs font-medium text-slate-600">
-        {label}
-      </label>
-      <div className="relative">
-        <input
-          type="text"
-          inputMode="numeric"
-          value={text}
-          onChange={(e) => {
-            const digits = e.target.value.replace(/[^0-9]/g, "");
-            const n = digits ? parseInt(digits, 10) : 0;
-            setText(digits ? formatVND(n) : "");
-            onChange(n);
-          }}
-          placeholder="0"
-          className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2 pr-9 text-sm font-mono tabular-nums text-slate-900 shadow-sm outline-none transition-colors focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100"
-        />
-        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 font-mono text-xs text-slate-400">
-          {suffix}
-        </span>
-      </div>
-    </div>
-  );
-}
+// RateField removed 2026-06-05: số tiền cụ thể quản qua trang Đơn giá
+// (rate_rules) thay vì cột phẳng trên tenant_teachers. Hình thức trả
+// (HOURLY/PER_SESSION/...) vẫn chỉnh ở form này — là metadata không
+// phải số tiền.
 
 // ── FilterPills ────────────────────────────────────────────────────────────
 // Segmented control for the teachers list filters. Generic over the value

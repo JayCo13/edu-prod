@@ -263,6 +263,39 @@ export async function createTenantTeacher(
       .single();
     if (error) return { success: false, error: error.message };
 
+    // Tự tạo 1 dòng rate_rules scope=TEACHER_DEFAULT với rate = 0 +
+    // payment_structure khớp form. Admin sẽ vào trang Đơn giá nhập
+    // số tiền cụ thể. Bỏ qua lỗi (fail-soft) — engine sẽ báo "chưa
+    // có đơn giá" khi tính lương, đủ để admin biết cần fix.
+    // CENTER only (SCHOOL không dùng rate_rules cho payroll).
+    if (tenant.kind === "CENTER") {
+      const today = new Date().toISOString().slice(0, 10);
+      await supabase.from("rate_rules").insert({
+        tenant_id: tenant.id,
+        teacher_id: data.id,
+        scope: "TEACHER_DEFAULT",
+        scope_id: null,
+        payment_structure: parsed.data.payment_structure,
+        hourly_rate:
+          parsed.data.payment_structure === "HOURLY" ||
+          parsed.data.payment_structure === "HYBRID"
+            ? 0
+            : null,
+        per_session_rate:
+          parsed.data.payment_structure === "PER_SESSION" ||
+          parsed.data.payment_structure === "HYBRID"
+            ? 0
+            : null,
+        fixed_monthly_amount:
+          parsed.data.payment_structure === "FIXED_MONTHLY" ||
+          parsed.data.payment_structure === "HYBRID"
+            ? 0
+            : null,
+        effective_from: today,
+        priority: 0,
+      });
+    }
+
     // Email the new teacher their credentials + change-password CTA.
     // Skipped in lite mode. Don't fail the whole flow on email errors —
     // surface as a warning so the admin knows to share the password manually.
@@ -357,8 +390,51 @@ export async function updateTenantTeacher(
       .select()
       .single();
     if (error) return { success: false, error: error.message };
+
+    // Sync payment_structure xuống rate_rules TEACHER_DEFAULT của GV.
+    // Số tiền (rate) admin nhập ở trang Đơn giá — KHÔNG ghi đè ở đây.
+    // Chỉ update structure để khớp với hình thức admin chọn ở form.
+    // Nếu rule TEACHER_DEFAULT chưa tồn tại (GV cũ trước migration),
+    // tự tạo mới với rate = 0.
+    if (parsed.data.payment_structure !== undefined && tenant.kind === "CENTER") {
+      const newStructure = parsed.data.payment_structure;
+      const { data: existingRule } = await supabase
+        .from("rate_rules")
+        .select("id")
+        .eq("tenant_id", tenant.id)
+        .eq("teacher_id", id)
+        .eq("scope", "TEACHER_DEFAULT")
+        .is("scope_id", null)
+        .is("effective_to", null)
+        .maybeSingle();
+      if (existingRule) {
+        await supabase
+          .from("rate_rules")
+          .update({ payment_structure: newStructure })
+          .eq("id", (existingRule as { id: string }).id);
+      } else {
+        const today = new Date().toISOString().slice(0, 10);
+        await supabase.from("rate_rules").insert({
+          tenant_id: tenant.id,
+          teacher_id: id,
+          scope: "TEACHER_DEFAULT",
+          scope_id: null,
+          payment_structure: newStructure,
+          hourly_rate:
+            newStructure === "HOURLY" || newStructure === "HYBRID" ? 0 : null,
+          per_session_rate:
+            newStructure === "PER_SESSION" || newStructure === "HYBRID" ? 0 : null,
+          fixed_monthly_amount:
+            newStructure === "FIXED_MONTHLY" || newStructure === "HYBRID" ? 0 : null,
+          effective_from: today,
+          priority: 0,
+        });
+      }
+    }
+
     revalidatePath("/dashboard/teachers");
     revalidatePath("/dashboard/calendar");
+    revalidatePath("/admin/payroll/rates");
     return { success: true, data: data as TenantTeacherRow };
   } catch (err) {
     return handleError<TenantTeacherRow>(err);

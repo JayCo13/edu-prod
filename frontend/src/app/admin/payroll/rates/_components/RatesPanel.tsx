@@ -129,7 +129,8 @@ export default function RatesPanel({
             Chưa có đơn giá nào.
           </p>
           <p className="mt-1 text-xs text-slate-500">
-            Mỗi giáo viên cần ít nhất 1 đơn giá Mặc định. Bấm "Thêm đơn giá".
+            Mỗi giáo viên cần ít nhất 1 đơn giá áp dụng cho tất cả lớp. Bấm{" "}
+            <strong>Thêm đơn giá</strong> để bắt đầu.
           </p>
         </div>
       ) : (
@@ -138,10 +139,10 @@ export default function RatesPanel({
             <thead className="bg-slate-50/70 text-xs uppercase tracking-wide text-slate-500">
               <tr>
                 <th className="px-3 py-2.5 text-left">Giáo viên</th>
-                <th className="px-3 py-2.5 text-left">Phạm vi</th>
-                <th className="px-3 py-2.5 text-left">Cấu trúc</th>
-                <th className="px-3 py-2.5 text-right">Đơn giá</th>
-                <th className="px-3 py-2.5 text-left">Hiệu lực</th>
+                <th className="px-3 py-2.5 text-left">Áp dụng cho</th>
+                <th className="px-3 py-2.5 text-left">Hình thức trả</th>
+                <th className="px-3 py-2.5 text-right">Mức tiền</th>
+                <th className="px-3 py-2.5 text-left">Thời gian</th>
                 <th className="px-3 py-2.5 text-right">Ưu tiên</th>
                 <th className="px-3 py-2.5 text-right">Thao tác</th>
               </tr>
@@ -213,10 +214,10 @@ function Row({
 }) {
   const scopeBadge =
     rule.scope === "TEACHER_DEFAULT"
-      ? { label: "Mặc định", cls: "bg-slate-100 text-slate-700 ring-slate-200" }
+      ? { label: "Tất cả lớp", cls: "bg-slate-100 text-slate-700 ring-slate-200" }
       : rule.scope === "COURSE"
-        ? { label: "Khoá học", cls: "bg-indigo-50 text-indigo-700 ring-indigo-200" }
-        : { label: "Lớp", cls: "bg-emerald-50 text-emerald-700 ring-emerald-200" };
+        ? { label: "Khoá riêng", cls: "bg-indigo-50 text-indigo-700 ring-indigo-200" }
+        : { label: "Lớp riêng", cls: "bg-emerald-50 text-emerald-700 ring-emerald-200" };
   const rateDisplay = (() => {
     if (rule.payment_structure === "HOURLY")
       return rule.hourly_rate ? `${formatVnd(rule.hourly_rate)}/giờ` : "—";
@@ -245,15 +246,15 @@ function Row({
           <span className="ml-2 text-xs text-slate-500">{scopeName}</span>
         )}
       </td>
-      <td className="px-3 py-2.5 text-xs uppercase tracking-wide text-slate-500">
-        {rule.payment_structure}
+      <td className="px-3 py-2.5 text-xs text-slate-700">
+        {PAYMENT_STRUCTURE_LABEL[rule.payment_structure] ?? rule.payment_structure}
       </td>
       <td className="px-3 py-2.5 text-right font-mono tabular-nums text-slate-900">
         {rateDisplay}
       </td>
       <td className="px-3 py-2.5 text-xs text-slate-600">
-        {rule.effective_from}
-        {rule.effective_to ? ` → ${rule.effective_to}` : " → ∞"}
+        Từ {formatVnDate(rule.effective_from)}
+        {rule.effective_to ? ` đến ${formatVnDate(rule.effective_to)}` : " (không giới hạn)"}
       </td>
       <td className="px-3 py-2.5 text-right text-xs font-mono text-slate-600">
         {rule.priority}
@@ -276,7 +277,7 @@ function Row({
             className="rounded-lg p-1.5 text-rose-500 hover:bg-rose-50 disabled:opacity-30"
             title={
               rule.scope === "TEACHER_DEFAULT"
-                ? "Không thể xoá đơn giá mặc định"
+                ? "Không thể xoá đơn giá áp dụng cho tất cả lớp"
                 : "Xoá"
             }
           >
@@ -291,3 +292,15 @@ function Row({
 function formatVnd(n: number): string {
   return new Intl.NumberFormat("vi-VN").format(n) + "đ";
 }
+
+function formatVnDate(iso: string): string {
+  const [y, m, d] = iso.split("-");
+  return `${d}/${m}/${y}`;
+}
+
+const PAYMENT_STRUCTURE_LABEL: Record<string, string> = {
+  HOURLY: "Theo giờ",
+  PER_SESSION: "Theo buổi",
+  FIXED_MONTHLY: "Cố định tháng",
+  HYBRID: "Kết hợp",
+};

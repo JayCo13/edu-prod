@@ -88,7 +88,7 @@ export default function QuotaForm({ teacherId, schoolYearId }: Props) {
     <div className="space-y-4">
       <div>
         <label className="block text-xs font-semibold uppercase tracking-wide text-slate-500">
-          Định mức cơ sở (để trống = dùng default trường)
+          Định mức tiết / tuần của giáo viên
         </label>
         <input
           type="number"
@@ -96,19 +96,22 @@ export default function QuotaForm({ teacherId, schoolYearId }: Props) {
           max={50}
           value={base}
           onChange={(e) => setBase(e.target.value)}
-          placeholder="19 (THCS) / 17 (THPT) / 23 (TH)"
+          placeholder="THCS 19 · THPT 17 · Tiểu học 23"
           className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-slate-400"
         />
+        <p className="mt-1 text-[11px] text-slate-500">
+          Để trống nếu dùng định mức chung của trường.
+        </p>
       </div>
 
       <div>
         <div className="flex items-center justify-between">
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-            Giảm trừ kiêm nhiệm (TT 05/2025 — tối đa 2)
+            Giảm trừ kiêm nhiệm (TT 05/2025 — tối đa 2 nhiệm vụ)
           </p>
           {eligibleCount > 2 && (
             <span className="text-xs font-semibold text-amber-700">
-              ⚠ Vượt 2 — chỉ áp 2 đầu
+              ⚠ Vượt 2 nhiệm vụ — chỉ áp 2 dòng đầu
             </span>
           )}
         </div>

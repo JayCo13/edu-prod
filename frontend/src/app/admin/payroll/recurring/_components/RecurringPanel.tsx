@@ -212,9 +212,9 @@ function Row({
       ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
       : "bg-rose-50 text-rose-700 ring-rose-200";
   const cycleLabel: Record<typeof rule.cycle, string> = {
-    EVERY: "Mỗi kỳ",
-    UNTIL_DATE: `Đến ${rule.effective_to ?? "—"}`,
-    N_PERIODS_LEFT: `Còn ${rule.remaining_periods ?? 0} kỳ`,
+    EVERY: "Mọi kỳ lương",
+    UNTIL_DATE: `Đến ${rule.effective_to ? formatVnDate(rule.effective_to) : "—"}`,
+    N_PERIODS_LEFT: `Còn ${rule.remaining_periods ?? 0} kỳ lương`,
   };
   return (
     <tr className={rule.is_active ? "" : "bg-slate-50/40 opacity-60"}>
@@ -285,4 +285,9 @@ function Row({
 
 function formatVnd(n: number): string {
   return new Intl.NumberFormat("vi-VN").format(n) + "đ";
+}
+
+function formatVnDate(iso: string): string {
+  const [y, m, d] = iso.split("-");
+  return `${d}/${m}/${y}`;
 }

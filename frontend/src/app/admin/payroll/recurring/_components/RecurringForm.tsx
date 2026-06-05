@@ -165,16 +165,18 @@ export default function RecurringForm({
               }
               className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-slate-400"
             >
-              <option value="EVERY">Mỗi kỳ — không giới hạn</option>
-              <option value="UNTIL_DATE">Đến ngày — kết thúc tự động</option>
-              <option value="N_PERIODS_LEFT">N kỳ còn lại — vd. tạm ứng trả góp</option>
+              <option value="EVERY">Áp dụng mọi kỳ lương (không giới hạn)</option>
+              <option value="UNTIL_DATE">Áp dụng đến một ngày cụ thể</option>
+              <option value="N_PERIODS_LEFT">
+                Áp dụng cố định trong N kỳ lương (vd. tạm ứng trả góp)
+              </option>
             </select>
             <p className="mt-1 text-[11px] leading-relaxed text-slate-500">
               {cycle === "EVERY"
-                ? "Áp dụng vô thời hạn cho mọi kỳ lương sau ngày bắt đầu. Tạm ngưng bằng nút trên bảng."
+                ? "Tự áp dụng vô thời hạn cho mọi kỳ lương sau ngày bắt đầu. Có thể tạm ngưng bằng nút trên bảng danh sách."
                 : cycle === "UNTIL_DATE"
-                  ? "Tự động dừng khi kỳ lương vượt qua ngày kết thúc."
-                  : "Mỗi kỳ APPROVED giảm 1; tự tắt khi về 0."}
+                  ? "Hệ thống sẽ tự ngừng áp dụng khi kỳ lương vượt qua ngày kết thúc."
+                  : "Mỗi khi một kỳ lương được duyệt, số kỳ còn lại sẽ giảm 1. Khi về 0, khoản này tự ngừng."}
             </p>
           </Field>
 

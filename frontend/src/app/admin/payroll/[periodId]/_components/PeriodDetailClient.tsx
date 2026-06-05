@@ -217,7 +217,10 @@ export default function PeriodDetailClient({ period, payoutDay }: Props) {
     setPending("approve");
     try {
       const r = await approvePayrollAction(period.id);
-      if (r.success) toast.success("Đã duyệt kỳ lương.");
+      if (r.success)
+        toast.success(
+          "Đã duyệt và khoá kỳ lương. Từ giờ không thể chỉnh sửa nữa.",
+        );
       else toast.error(r.error);
     } finally {
       setPending(null);
@@ -358,8 +361,8 @@ export default function PeriodDetailClient({ period, payoutDay }: Props) {
                 <Banknote className="h-4 w-4" />
               )}
               {pending === "markAllBank"
-                ? `Đang đánh dấu ${unpaidCount} giáo viên...`
-                : "Đánh dấu tất cả đã CK"}
+                ? `Đang đánh dấu ${unpaidCount} giáo viên…`
+                : "Đánh dấu tất cả đã chuyển khoản"}
             </button>
           ) : null}
           {canExport ? (
@@ -427,9 +430,9 @@ export default function PeriodDetailClient({ period, payoutDay }: Props) {
             <thead className="bg-slate-50">
               <tr>
                 <Th>Họ tên</Th>
-                <Th align="right">Cơ sở tính</Th>
-                <Th align="right">Cơ bản</Th>
-                <Th align="right">Điều chỉnh</Th>
+                <Th align="right">Đơn vị tính</Th>
+                <Th align="right">Lương cơ bản</Th>
+                <Th align="right">Phụ cấp / khấu trừ</Th>
                 <Th align="right">Thực lĩnh</Th>
                 <Th />
               </tr>

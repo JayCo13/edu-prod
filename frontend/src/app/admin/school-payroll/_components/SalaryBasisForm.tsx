@@ -63,10 +63,10 @@ export default function SalaryBasisForm({ teacherId, schoolYearId }: Props) {
   return (
     <div className="space-y-3">
       <div className="rounded-xl border border-indigo-200 bg-indigo-50/40 px-3 py-2 text-xs leading-relaxed text-indigo-900">
-        Lương cơ sở (2.34M hiện tại) hoặc hệ số lương GV có thể đổi giữa năm.
-        Mỗi lần đổi → thêm 1 dòng mới với <strong>effective_from</strong>
-        đúng ngày bắt đầu hiệu lực. Engine compute đơn giá theo từng giai
-        đoạn, trung bình trọng số.
+        Lương cơ sở (hiện hành 2.340.000đ) hoặc hệ số lương của giáo viên có
+        thể thay đổi giữa năm. Mỗi khi thay đổi, hãy thêm một giai đoạn mới
+        với <strong>ngày bắt đầu áp dụng</strong>. Hệ thống sẽ tính đơn giá
+        tiết theo từng giai đoạn rồi lấy trung bình có trọng số cho cả năm.
       </div>
 
       <div className="flex justify-end">
@@ -93,15 +93,19 @@ export default function SalaryBasisForm({ teacherId, schoolYearId }: Props) {
             >
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-semibold text-slate-900">
-                  {r.effective_from} → {r.effective_to ?? "∞"}
+                  Từ {formatVnDate(r.effective_from)}
+                  {r.effective_to
+                    ? ` đến ${formatVnDate(r.effective_to)}`
+                    : " (không giới hạn)"}
                 </p>
                 {r.flat_rate_per_period_vnd !== null ? (
                   <p className="mt-0.5 text-xs text-slate-600">
-                    Flat: {formatVnd(r.flat_rate_per_period_vnd)}/tiết (trường tư)
+                    Đơn giá cố định: {formatVnd(r.flat_rate_per_period_vnd)}/tiết
+                    (trường tư)
                   </p>
                 ) : (
                   <p className="mt-0.5 text-xs text-slate-600">
-                    HS {r.salary_coefficient} × lương cơ sở{" "}
+                    Hệ số {r.salary_coefficient} × lương cơ sở{" "}
                     {formatVnd(r.base_salary_vnd ?? 0)}
                     {(r.position_allowance_vnd ?? 0) > 0 &&
                       ` + chức vụ ${formatVnd(r.position_allowance_vnd!)}`}
@@ -193,7 +197,7 @@ function SalaryForm({
               mode === "compute" ? "bg-white text-slate-900 shadow-sm" : "text-slate-600"
             }`}
           >
-            Compute (trường công)
+            Theo hệ số lương (trường công)
           </button>
           <button
             type="button"
@@ -202,7 +206,7 @@ function SalaryForm({
               mode === "flat" ? "bg-white text-slate-900 shadow-sm" : "text-slate-600"
             }`}
           >
-            Flat (trường tư)
+            Đơn giá cố định (trường tư)
           </button>
         </div>
 
@@ -346,4 +350,9 @@ function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
 
 function formatVnd(n: number): string {
   return new Intl.NumberFormat("vi-VN").format(n) + "đ";
+}
+
+function formatVnDate(iso: string): string {
+  const [y, m, d] = iso.split("-");
+  return `${d}/${m}/${y}`;
 }

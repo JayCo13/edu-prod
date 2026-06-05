@@ -204,7 +204,11 @@ export default function AuditLogModal({ periodId, itemIds }: Props) {
                         {renderAuditLine(e)}
                       </p>
                       <div className="mt-2 flex items-center gap-2 text-[10px] uppercase tracking-wider text-slate-400">
-                        <span className="font-mono">{e.action}</span>
+                        <span>
+                          {AUDIT_ACTION_LABEL[
+                            e.action as keyof typeof AUDIT_ACTION_LABEL
+                          ] ?? e.action}
+                        </span>
                         <span>·</span>
                         <span>{formatTimestampVN(e.created_at)}</span>
                         {e.metadata.ip ? (

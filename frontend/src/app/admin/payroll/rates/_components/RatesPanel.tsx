@@ -81,7 +81,7 @@ export default function RatesPanel({
   function handleDelete(rule: RateRuleRow) {
     if (rule.scope === "TEACHER_DEFAULT") {
       alert(
-        "Không thể xoá đơn giá Mặc định — mỗi giáo viên cần ít nhất 1 fallback. Sửa giá trị nếu cần thay đổi.",
+        "Không thể xoá đơn giá áp dụng cho tất cả lớp — mỗi giáo viên cần ít nhất một đơn giá chung. Hãy sửa giá trị nếu muốn thay đổi.",
       );
       return;
     }

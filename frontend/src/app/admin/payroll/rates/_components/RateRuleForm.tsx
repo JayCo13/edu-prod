@@ -128,7 +128,7 @@ export default function RateRuleForm({
 
           <div className="grid gap-3 sm:grid-cols-2">
             <Field>
-              <Label>Phạm vi</Label>
+              <Label>Áp dụng cho</Label>
               <select
                 value={scope}
                 onChange={(e) => {
@@ -137,12 +137,13 @@ export default function RateRuleForm({
                 }}
                 className={inputCls}
               >
-                <option value="TEACHER_DEFAULT">Mặc định (fallback)</option>
-                <option value="COURSE">Khoá học cụ thể</option>
-                <option value="CLASS">Lớp cụ thể</option>
+                <option value="TEACHER_DEFAULT">Tất cả lớp của giáo viên</option>
+                <option value="CLASS">Riêng một lớp cụ thể</option>
+                <option value="COURSE">Riêng một khoá học cụ thể</option>
               </select>
               <p className="mt-1 text-[11px] text-slate-500">
-                Mỗi GV cần ít nhất 1 đơn giá Mặc định. Lớp ≻ Khoá ≻ Mặc định.
+                Mỗi giáo viên cần ít nhất 1 đơn giá áp dụng cho tất cả lớp.
+                Nếu lớp / khoá có đơn giá riêng, đơn giá đó sẽ được ưu tiên.
               </p>
             </Field>
             {scope === "COURSE" && (

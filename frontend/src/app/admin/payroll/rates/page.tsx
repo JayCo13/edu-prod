@@ -41,13 +41,13 @@ export default async function RateRulesPage() {
           Bảng lương
         </p>
         <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
-          Đơn giá theo phạm vi
+          Đơn giá giáo viên
         </h1>
         <p className="mt-2 max-w-3xl text-sm text-slate-500">
-          Khai báo đơn giá khác nhau cho cùng giáo viên theo từng khoá / lớp.
-          Mỗi giáo viên cần ít nhất 1 đơn giá <strong>Mặc định</strong> làm
-          fallback. Khi xếp lương, hệ thống tự chọn rule khớp nhất theo thứ tự:
-          Lớp ≻ Khoá ≻ Mặc định, sau đó theo priority + ngày hiệu lực.
+          Đặt mức tiền cụ thể cho từng giáo viên. Có thể đặt một mức chung
+          (áp cho tất cả lớp) và thêm mức riêng cho từng lớp / khoá nếu
+          khác nhau. Mỗi giáo viên cần ít nhất một mức chung. Khi tính lương,
+          nếu lớp có mức riêng thì lấy mức riêng, không có thì lấy mức chung.
         </p>
       </header>
 

@@ -91,28 +91,27 @@ export default function RegisterForm() {
         <>
           {/* ── LEFT: brand + Google + teacher notice ───────────────────
               Quiet white-on-white layout — no loud gradient. Hidden on
-              mobile (form below has its own brand mark). */}
+              mobile (form below has its own brand mark). Logo centered
+              + larger; tagline đã bỏ. */}
           <div className="hidden flex-col gap-6 bg-slate-50/40 p-10 lg:flex">
-            <Link href="/" aria-label="Edura — trang chủ" className="inline-flex">
+            <Link
+              href="/"
+              aria-label="Edura — trang chủ"
+              className="flex justify-center"
+            >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src="/edura-logo.png"
                 alt="Edura"
-                width={140}
-                height={42}
-                className="h-10 w-auto"
+                width={280}
+                height={84}
+                className="h-20 w-auto"
               />
             </Link>
 
-            <div>
-              <h2 className="font-display text-[26px] font-bold leading-tight tracking-tight text-slate-900">
-                Quản lý trung tâm —<br />
-                đúng giờ, đúng số.
-              </h2>
-              <p className="mt-2.5 max-w-sm text-[13px] leading-relaxed text-slate-500">
-                Bảng lương, lịch dạy, phân quyền giáo viên — gom về một chỗ.
-              </p>
-            </div>
+            <p className="text-center text-[13px] leading-relaxed text-slate-500">
+              Bảng lương, lịch dạy, phân quyền giáo viên — gom về một chỗ.
+            </p>
 
             {/* Google signup — moved from right column per design feedback */}
             <motion.button
